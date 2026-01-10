@@ -24,7 +24,11 @@ export async function GET(request: NextRequest) {
   const timeEntries = await prisma.timeEntry.findMany({
     where,
     include: {
-      task: true,
+      task: {
+        include: {
+          project: true,
+        },
+      },
     },
     orderBy: {
       startTime: "desc",
@@ -56,7 +60,11 @@ export async function POST(request: NextRequest) {
       note,
     },
     include: {
-      task: true,
+      task: {
+        include: {
+          project: true,
+        },
+      },
     },
   });
 

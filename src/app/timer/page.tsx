@@ -5,9 +5,10 @@ import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stopwatch } from "@/components/timer/Stopwatch";
 import { TimeEntryList } from "@/components/timer/TimeEntryList";
-import type { TimeEntry, Task } from "@/generated/prisma/client";
+import type { TimeEntry, Task, Project } from "@/generated/prisma/client";
 
-type TimeEntryWithTask = TimeEntry & { task: Task | null };
+type TaskWithProject = Task & { project: Project | null };
+type TimeEntryWithTask = TimeEntry & { task: TaskWithProject | null };
 
 export default function TimerPage() {
   const [entries, setEntries] = useState<TimeEntryWithTask[]>([]);
