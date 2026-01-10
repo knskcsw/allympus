@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Attendance {
+  id           String    @id @default(cuid())
+  date         DateTime
+  clockIn      DateTime?
+  clockOut     DateTime?
+  breakMinutes Int       @default(0)
+  note         String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([date])
+  @@map("attendances")
+}
+
+model Task {
+  id               String      @id @default(cuid())
+  title            String
+  description      String?
+  status           String      @default("TODO")
+  priority         String      @default("MEDIUM")
+  dueDate          DateTime?
+  estimatedMinutes Int?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  timeEntries TimeEntry[]
+
+  @@map("tasks")
+}
+
+model TimeEntry {
+  id        String    @id @default(cuid())
+  taskId    String?
+  task      Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  startTime DateTime
+  endTime   DateTime?
+  duration  Int?
+  note      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("time_entries")
+}
