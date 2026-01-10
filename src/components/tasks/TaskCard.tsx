@@ -4,12 +4,18 @@ import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, Clock } from "lucide-react";
+import { Pencil, Trash2, Clock, FolderKanban } from "lucide-react";
 import type { Task } from "@/generated/prisma/client";
 
+type TaskWithProject = Task & {
+  totalTimeSpent?: number;
+  project?: { id: string; code: string; name: string } | null;
+  wbs?: { id: string; name: string } | null;
+};
+
 interface TaskCardProps {
-  task: Task & { totalTimeSpent?: number };
-  onEdit: (task: Task) => void;
+  task: TaskWithProject;
+  onEdit: (task: TaskWithProject) => void;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: string) => void;
 }
@@ -87,6 +93,19 @@ export function TaskCard({
             {task.priority}
           </Badge>
         </div>
+
+        {task.project && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <FolderKanban className="h-3 w-3" />
+            <span className="font-mono">{task.project.code}</span>
+            {task.wbs && (
+              <>
+                <span>/</span>
+                <span>{task.wbs.name}</span>
+              </>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center gap-1">

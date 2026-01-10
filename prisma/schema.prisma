@@ -21,6 +21,32 @@ model Attendance {
   @@map("attendances")
 }
 
+model Project {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  wbsList Wbs[]
+  tasks   Task[]
+
+  @@map("projects")
+}
+
+model Wbs {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks Task[]
+
+  @@map("wbs")
+}
+
 model Task {
   id               String      @id @default(cuid())
   title            String
@@ -29,6 +55,10 @@ model Task {
   priority         String      @default("MEDIUM")
   dueDate          DateTime?
   estimatedMinutes Int?
+  projectId        String?
+  project          Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  wbsId            String?
+  wbs              Wbs?        @relation(fields: [wbsId], references: [id], onDelete: SetNull)
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 

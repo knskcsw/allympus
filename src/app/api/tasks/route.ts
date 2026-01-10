@@ -19,6 +19,19 @@ export async function GET(request: NextRequest) {
           duration: true,
         },
       },
+      project: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+        },
+      },
+      wbs: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
     },
   });
 
@@ -35,8 +48,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { title, description, status, priority, dueDate, estimatedMinutes } =
-    body;
+  const {
+    title,
+    description,
+    status,
+    priority,
+    dueDate,
+    estimatedMinutes,
+    projectId,
+    wbsId,
+  } = body;
 
   const task = await prisma.task.create({
     data: {
@@ -46,6 +67,23 @@ export async function POST(request: NextRequest) {
       priority: priority || "MEDIUM",
       dueDate: dueDate ? new Date(dueDate) : null,
       estimatedMinutes,
+      projectId: projectId || null,
+      wbsId: wbsId || null,
+    },
+    include: {
+      project: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+        },
+      },
+      wbs: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
     },
   });
 
