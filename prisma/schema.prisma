@@ -22,11 +22,12 @@ model Attendance {
 }
 
 model Project {
-  id        String   @id @default(cuid())
-  code      String   @unique
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  abbreviation String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   wbsList          Wbs[]
   tasks            Task[]

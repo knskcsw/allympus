@@ -24,7 +24,7 @@ interface ProjectListProps {
   onDeleteWbs: (wbsId: string) => void;
   onUpdateWbs: (wbsId: string, name: string) => void;
   onDeleteProject: (projectId: string) => void;
-  onUpdateProject: (projectId: string, code: string, name: string) => void;
+  onUpdateProject: (projectId: string, code: string, name: string, abbreviation?: string) => void;
 }
 
 export function ProjectList({
@@ -45,6 +45,7 @@ export function ProjectList({
   const [editingProjectData, setEditingProjectData] = useState({
     code: "",
     name: "",
+    abbreviation: "",
   });
 
   const toggleProject = (projectId: string) => {
@@ -82,7 +83,11 @@ export function ProjectList({
 
   const startEditProject = (project: ProjectWithWbs) => {
     setEditingProject(project.id);
-    setEditingProjectData({ code: project.code, name: project.name });
+    setEditingProjectData({
+      code: project.code,
+      name: project.name,
+      abbreviation: project.abbreviation || ""
+    });
   };
 
   const saveEditProject = () => {
@@ -94,10 +99,11 @@ export function ProjectList({
       onUpdateProject(
         editingProject,
         editingProjectData.code.trim(),
-        editingProjectData.name.trim()
+        editingProjectData.name.trim(),
+        editingProjectData.abbreviation.trim() || undefined
       );
       setEditingProject(null);
-      setEditingProjectData({ code: "", name: "" });
+      setEditingProjectData({ code: "", name: "", abbreviation: "" });
     }
   };
 
@@ -149,6 +155,17 @@ export function ProjectList({
                         className="flex-1 h-8"
                         placeholder="Name"
                       />
+                      <Input
+                        value={editingProjectData.abbreviation}
+                        onChange={(e) =>
+                          setEditingProjectData((prev) => ({
+                            ...prev,
+                            abbreviation: e.target.value,
+                          }))
+                        }
+                        className="w-24 h-8"
+                        placeholder="Abbr."
+                      />
                       <Button
                         variant="ghost"
                         size="sm"
@@ -174,6 +191,11 @@ export function ProjectList({
                       <Badge variant="outline" className="font-mono">
                         {project.code}
                       </Badge>
+                      {project.abbreviation && (
+                        <Badge variant="secondary" className="text-xs">
+                          {project.abbreviation}
+                        </Badge>
+                      )}
                       <CardTitle className="text-base">{project.name}</CardTitle>
                       <span className="text-sm text-muted-foreground">
                         ({project.wbsList.length} WBS)

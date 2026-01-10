@@ -16,12 +16,13 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { code, name, wbsList } = body;
+  const { code, name, abbreviation, wbsList } = body;
 
   const project = await prisma.project.create({
     data: {
       code,
       name,
+      abbreviation,
       wbsList: wbsList?.length
         ? {
             create: wbsList.map((wbs: { name: string }) => ({

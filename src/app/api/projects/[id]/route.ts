@@ -28,13 +28,14 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { code, name } = body;
+  const { code, name, abbreviation } = body;
 
   const project = await prisma.project.update({
     where: { id },
     data: {
       ...(code && { code }),
       ...(name && { name }),
+      ...(abbreviation !== undefined && { abbreviation }),
     },
     include: {
       wbsList: true,

@@ -28,6 +28,7 @@ export default function ProjectsPage() {
   const handleCreate = async (data: {
     code: string;
     name: string;
+    abbreviation?: string;
     wbsList: { name: string }[];
   }) => {
     await fetch("/api/projects", {
@@ -73,12 +74,13 @@ export default function ProjectsPage() {
   const handleUpdateProject = async (
     projectId: string,
     code: string,
-    name: string
+    name: string,
+    abbreviation?: string
   ) => {
     await fetch(`/api/projects/${projectId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, name }),
+      body: JSON.stringify({ code, name, abbreviation }),
     });
     fetchProjects();
   };

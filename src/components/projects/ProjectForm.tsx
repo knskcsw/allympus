@@ -17,6 +17,7 @@ interface ProjectFormProps {
   onSubmit: (data: {
     code: string;
     name: string;
+    abbreviation?: string;
     wbsList: { name: string }[];
   }) => void;
 }
@@ -24,6 +25,7 @@ interface ProjectFormProps {
 export function ProjectForm({ open, onClose, onSubmit }: ProjectFormProps) {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [abbreviation, setAbbreviation] = useState("");
   const [wbsList, setWbsList] = useState<string[]>([""]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -31,6 +33,7 @@ export function ProjectForm({ open, onClose, onSubmit }: ProjectFormProps) {
     onSubmit({
       code,
       name,
+      abbreviation: abbreviation.trim() || undefined,
       wbsList: wbsList.filter((w) => w.trim()).map((w) => ({ name: w.trim() })),
     });
     resetForm();
@@ -40,6 +43,7 @@ export function ProjectForm({ open, onClose, onSubmit }: ProjectFormProps) {
   const resetForm = () => {
     setCode("");
     setName("");
+    setAbbreviation("");
     setWbsList([""]);
   };
 
@@ -87,6 +91,15 @@ export function ProjectForm({ open, onClose, onSubmit }: ProjectFormProps) {
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., FY25_Project_Name"
               required
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Abbreviation (optional)</label>
+            <Input
+              value={abbreviation}
+              onChange={(e) => setAbbreviation(e.target.value)}
+              placeholder="e.g., PJA"
             />
           </div>
 
