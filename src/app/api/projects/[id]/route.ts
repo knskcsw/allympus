@@ -28,7 +28,7 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { code, name, abbreviation } = body;
+  const { code, name, abbreviation, workType } = body;
 
   const project = await prisma.project.update({
     where: { id },
@@ -36,6 +36,7 @@ export async function PATCH(
       ...(code && { code }),
       ...(name && { name }),
       ...(abbreviation !== undefined && { abbreviation }),
+      ...(workType && { workType }),
     },
     include: {
       wbsList: true,

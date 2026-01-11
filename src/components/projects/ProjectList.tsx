@@ -6,6 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ChevronDown,
   ChevronRight,
   Plus,
@@ -15,6 +22,7 @@ import {
   Check,
 } from "lucide-react";
 import type { Project, Wbs } from "@/generated/prisma/client";
+import { WORK_TYPES, WORK_TYPE_LABELS, type WorkType } from "@/lib/workTypes";
 
 type ProjectWithWbs = Project & { wbsList: Wbs[] };
 
@@ -24,7 +32,13 @@ interface ProjectListProps {
   onDeleteWbs: (wbsId: string) => void;
   onUpdateWbs: (wbsId: string, name: string) => void;
   onDeleteProject: (projectId: string) => void;
-  onUpdateProject: (projectId: string, code: string, name: string, abbreviation?: string) => void;
+  onUpdateProject: (
+    projectId: string,
+    code: string,
+    name: string,
+    abbreviation: string | undefined,
+    workType: WorkType
+  ) => void;
 }
 
 export function ProjectList({
@@ -46,6 +60,7 @@ export function ProjectList({
     code: "",
     name: "",
     abbreviation: "",
+    workType: "IN_PROGRESS" as WorkType,
   });
 
   const toggleProject = (projectId: string) => {
@@ -86,7 +101,8 @@ export function ProjectList({
     setEditingProjectData({
       code: project.code,
       name: project.name,
-      abbreviation: project.abbreviation || ""
+      abbreviation: project.abbreviation || "",
+      workType: (project.workType as WorkType) || "IN_PROGRESS",
     });
   };
 
@@ -100,10 +116,16 @@ export function ProjectList({
         editingProject,
         editingProjectData.code.trim(),
         editingProjectData.name.trim(),
-        editingProjectData.abbreviation.trim() || undefined
+        editingProjectData.abbreviation.trim() || undefined,
+        editingProjectData.workType
       );
       setEditingProject(null);
-      setEditingProjectData({ code: "", name: "", abbreviation: "" });
+      setEditingProjectData({
+        code: "",
+        name: "",
+        abbreviation: "",
+        workType: "IN_PROGRESS",
+      });
     }
   };
 
@@ -166,6 +188,26 @@ export function ProjectList({
                         className="w-24 h-8"
                         placeholder="Abbr."
                       />
+                      <Select
+                        value={editingProjectData.workType}
+                        onValueChange={(value) =>
+                          setEditingProjectData((prev) => ({
+                            ...prev,
+                            workType: value as WorkType,
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="w-28 h-8">
+                          <SelectValue placeholder="稼働タイプ" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {WORK_TYPES.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>
+                              {type.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -196,6 +238,9 @@ export function ProjectList({
                           {project.abbreviation}
                         </Badge>
                       )}
+                      <Badge variant="outline" className="text-xs">
+                        {WORK_TYPE_LABELS[project.workType as WorkType] || "仕掛稼働"}
+                      </Badge>
                       <CardTitle className="text-base">{project.name}</CardTitle>
                       <span className="text-sm text-muted-foreground">
                         ({project.wbsList.length} WBS)

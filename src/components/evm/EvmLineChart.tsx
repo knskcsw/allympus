@@ -20,6 +20,7 @@ type EvmLineChartProps = {
   series: Series[];
   valueFormatter?: (value: number) => string;
   referenceLines?: ReferenceLine[];
+  maxValue?: number;
 };
 
 type ChartPoint = {
@@ -36,7 +37,13 @@ const toId = (label: string) =>
 
 const defaultValueFormatter = (value: number) => `${value.toFixed(1)}h`;
 
-export default function EvmLineChart({ dates, series, valueFormatter, referenceLines }: EvmLineChartProps) {
+export default function EvmLineChart({
+  dates,
+  series,
+  valueFormatter,
+  referenceLines,
+  maxValue: maxValueOverride,
+}: EvmLineChartProps) {
   const formatValue = valueFormatter ?? defaultValueFormatter;
   const chartRef = useRef<HTMLDivElement>(null);
   const plotRef = useRef<HTMLDivElement>(null);
@@ -46,7 +53,8 @@ export default function EvmLineChart({ dates, series, valueFormatter, referenceL
 
   const values = series.flatMap((line) => line.data);
   const referenceValues = (referenceLines ?? []).map((line) => line.value);
-  const maxValue = Math.max(1, ...values, ...referenceValues);
+  const computedMax = Math.max(0, ...values, ...referenceValues);
+  const maxValue = Math.max(1, maxValueOverride ?? computedMax);
   const count = dates.length;
   const firstDate = dates[0];
   const lastDate = dates[dates.length - 1];

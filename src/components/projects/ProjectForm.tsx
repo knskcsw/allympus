@@ -9,7 +9,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, X } from "lucide-react";
+import { WORK_TYPES, type WorkType } from "@/lib/workTypes";
 
 interface ProjectFormProps {
   open: boolean;
@@ -18,6 +26,7 @@ interface ProjectFormProps {
     code: string;
     name: string;
     abbreviation?: string;
+    workType: WorkType;
     wbsList: { name: string }[];
   }) => void;
 }
@@ -26,6 +35,7 @@ export function ProjectForm({ open, onClose, onSubmit }: ProjectFormProps) {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [abbreviation, setAbbreviation] = useState("");
+  const [workType, setWorkType] = useState<WorkType>("IN_PROGRESS");
   const [wbsList, setWbsList] = useState<string[]>([""]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -34,6 +44,7 @@ export function ProjectForm({ open, onClose, onSubmit }: ProjectFormProps) {
       code,
       name,
       abbreviation: abbreviation.trim() || undefined,
+      workType,
       wbsList: wbsList.filter((w) => w.trim()).map((w) => ({ name: w.trim() })),
     });
     resetForm();
@@ -44,6 +55,7 @@ export function ProjectForm({ open, onClose, onSubmit }: ProjectFormProps) {
     setCode("");
     setName("");
     setAbbreviation("");
+    setWorkType("IN_PROGRESS");
     setWbsList([""]);
   };
 
@@ -101,6 +113,22 @@ export function ProjectForm({ open, onClose, onSubmit }: ProjectFormProps) {
               onChange={(e) => setAbbreviation(e.target.value)}
               placeholder="e.g., PJA"
             />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">稼働タイプ</label>
+            <Select value={workType} onValueChange={(value) => setWorkType(value as WorkType)}>
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="稼働タイプを選択" />
+              </SelectTrigger>
+              <SelectContent>
+                {WORK_TYPES.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
