@@ -17,6 +17,7 @@ import type { Holiday } from "@/generated/prisma/client";
 import { Plus, Trash2, FileSpreadsheet, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -41,6 +42,13 @@ const HOLIDAY_TYPE_LABELS: { [key: string]: string } = {
   WEEKEND: "定休日",
   SPECIAL_HOLIDAY: "特別休日",
   PAID_LEAVE: "有給休暇",
+};
+
+const HOLIDAY_TYPE_COLORS: { [key: string]: string } = {
+  PUBLIC_HOLIDAY: "bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700",
+  WEEKEND: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600",
+  SPECIAL_HOLIDAY: "bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200 border-blue-300 dark:border-blue-700",
+  PAID_LEAVE: "bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700",
 };
 
 export default function HolidaysPage() {
@@ -201,6 +209,54 @@ export default function HolidaysPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>統計情報</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">定休日</p>
+              <p className="text-2xl font-bold">
+                {holidays.filter((h) => h.type === "WEEKEND").length}日
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">祝日</p>
+              <p className="text-2xl font-bold">
+                {holidays.filter((h) => h.type === "PUBLIC_HOLIDAY").length}日
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">特別休日</p>
+              <p className="text-2xl font-bold">
+                {holidays.filter((h) => h.type === "SPECIAL_HOLIDAY").length}日
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">年間休日数</p>
+              <p className="text-2xl font-bold text-primary">
+                {
+                  holidays.filter(
+                    (h) =>
+                      h.type === "WEEKEND" ||
+                      h.type === "PUBLIC_HOLIDAY" ||
+                      h.type === "SPECIAL_HOLIDAY"
+                  ).length
+                }
+                日
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">有休取得数</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {holidays.filter((h) => h.type === "PAID_LEAVE").length}日
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>休日一覧</CardTitle>
             <DropdownMenu>
@@ -253,7 +309,14 @@ export default function HolidaysPage() {
                     </TableCell>
                     <TableCell>{holiday.name}</TableCell>
                     <TableCell>
-                      {HOLIDAY_TYPE_LABELS[holiday.type] || holiday.type}
+                      <span
+                        className={cn(
+                          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
+                          HOLIDAY_TYPE_COLORS[holiday.type] || "bg-gray-100 text-gray-800 border-gray-300"
+                        )}
+                      >
+                        {HOLIDAY_TYPE_LABELS[holiday.type] || holiday.type}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <Button

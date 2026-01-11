@@ -43,14 +43,24 @@ const FY25_HOLIDAYS = [
   { date: "2026-03-20", name: "春分の日" },
 ];
 
-// 年末年始休暇 (2025/12/26 - 2026/1/4)
+// 年末年始休暇 (2025/12/26 - 2026/1/4) ※土日と元日を除く
 const NEW_YEAR_HOLIDAYS = eachDayOfInterval({
   start: new Date("2025-12-26"),
   end: new Date("2026-01-04"),
-}).map((date) => ({
-  date: format(date, "yyyy-MM-dd"),
-  name: "年末年始休暇",
-}));
+})
+  .filter((date) => {
+    const dayOfWeek = getDay(date);
+    const dateStr = format(date, "yyyy-MM-dd");
+    // 土日を除外 (土曜=6, 日曜=0)
+    if (dayOfWeek === 0 || dayOfWeek === 6) return false;
+    // 元日を除外 (祝日として既に登録されているため)
+    if (dateStr === "2026-01-01") return false;
+    return true;
+  })
+  .map((date) => ({
+    date: format(date, "yyyy-MM-dd"),
+    name: "年末年始休暇",
+  }));
 
 // FY25の土日を生成 (2025/4/1 - 2026/3/31)
 const generateWeekends = (fiscalYear: string) => {
@@ -225,7 +235,7 @@ export function BulkAddHolidayDialog({
                     年末年始休暇を追加
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    2025年12月26日〜2026年1月4日（10日間）
+                    2025年12月26日〜2026年1月4日（土日・祝日除く5日間）
                   </p>
                 </div>
               </div>

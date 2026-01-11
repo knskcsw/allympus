@@ -61,13 +61,13 @@ export function HolidayCalendar({
     const currentDate = new Date(year, month - 1);
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
 
     const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
     const today = new Date();
 
-    const weekDays = ["日", "月", "火", "水", "木", "金", "土"];
+    const weekDays = ["月", "火", "水", "木", "金", "土", "日"];
 
     return (
       <div key={month} className="border rounded-lg p-3">
@@ -78,7 +78,7 @@ export function HolidayCalendar({
               key={day}
               className={cn(
                 "p-1 text-center text-xs font-medium",
-                idx === 0 ? "text-red-500" : idx === 6 ? "text-blue-500" : "text-muted-foreground"
+                idx === 5 ? "text-blue-500" : idx === 6 ? "text-red-500" : "text-muted-foreground"
               )}
             >
               {day}
