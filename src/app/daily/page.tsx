@@ -313,7 +313,7 @@ export default function DailyPage() {
   const routineItems = data.morningRoutine || [];
   const isRoutineComplete =
     routineItems.length > 0 && routineItems.every((item: any) => item.completed);
-  const showNormalView = hasCheckedIn && isRoutineComplete;
+  const showNormalView = hasCheckedIn;
   const canClockOut =
     showNormalView && selectedStart.getTime() === today.getTime();
 
@@ -385,81 +385,84 @@ export default function DailyPage() {
             </Button>
           </CardContent>
         </Card>
-      ) : !isRoutineComplete ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Morning Routine</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {routineItems.length === 0 ? (
-              <div className="text-sm text-muted-foreground">
-                ルーティンを準備中です...
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {routineItems.map((item: any) => (
-                  <label
-                    key={item.id}
-                    className="flex items-center gap-3 text-sm"
-                  >
-                    <Checkbox
-                      checked={item.completed}
-                      onCheckedChange={(checked) =>
-                        handleRoutineToggle(item.id, Boolean(checked))
-                      }
-                    />
-                    <span
-                      className={
-                        item.completed
-                          ? "text-muted-foreground line-through"
-                          : ""
-                      }
-                    >
-                      {item.title}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-            <div className="text-sm text-muted-foreground">
-              すべて完了するとDailyが解放されます
-            </div>
-          </CardContent>
-        </Card>
       ) : (
-        <div className="grid grid-cols-12 gap-4">
-          {/* Left: Tasks (col-span-3) */}
-          <div className="col-span-3">
-            <DailyTaskPanel
-              date={selectedDate}
-              tasks={data.dailyTasks || []}
-              onTaskCreate={handleTaskCreate}
-              onTaskUpdate={handleTaskUpdate}
-              onTaskDelete={handleTaskDelete}
-              onTaskStatusChange={handleTaskStatusChange}
-            />
-          </div>
+        <>
+          {!isRoutineComplete && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Morning Routine</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {routineItems.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">
+                    ルーティンを準備中です...
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {routineItems.map((item: any) => (
+                      <label
+                        key={item.id}
+                        className="flex items-center gap-3 text-sm"
+                      >
+                        <Checkbox
+                          checked={item.completed}
+                          onCheckedChange={(checked) =>
+                            handleRoutineToggle(item.id, Boolean(checked))
+                          }
+                        />
+                        <span
+                          className={
+                            item.completed
+                              ? "text-muted-foreground line-through"
+                              : ""
+                          }
+                        >
+                          {item.title}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <div className="text-sm text-muted-foreground">
+                  Dailyはこのまま使えます
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          <div className="grid grid-cols-12 gap-4">
+            {/* Left: Tasks (col-span-3) */}
+            <div className="col-span-3">
+              <DailyTaskPanel
+                date={selectedDate}
+                tasks={data.dailyTasks || []}
+                onTaskCreate={handleTaskCreate}
+                onTaskUpdate={handleTaskUpdate}
+                onTaskDelete={handleTaskDelete}
+                onTaskStatusChange={handleTaskStatusChange}
+              />
+            </div>
 
-          {/* Middle: Time Tracking & Entries (col-span-6) */}
-          <div className="col-span-6 space-y-4">
-            <StopwatchIntegrated
-              dailyTasks={data.dailyTasks || []}
-              onEntryChange={fetchDailyData}
-            />
-            <DailyTimeEntryTable
-              entries={data.timeEntries || []}
-              dailyTasks={data.dailyTasks || []}
-              projects={projects}
-              onUpdate={handleTimeEntryUpdate}
-              onDelete={handleTimeEntryDelete}
-            />
-          </div>
+            {/* Middle: Time Tracking & Entries (col-span-6) */}
+            <div className="col-span-6 space-y-4">
+              <StopwatchIntegrated
+                dailyTasks={data.dailyTasks || []}
+                onEntryChange={fetchDailyData}
+              />
+              <DailyTimeEntryTable
+                entries={data.timeEntries || []}
+                dailyTasks={data.dailyTasks || []}
+                projects={projects}
+                onUpdate={handleTimeEntryUpdate}
+                onDelete={handleTimeEntryDelete}
+              />
+            </div>
 
-          {/* Right: Summary (col-span-3) */}
-          <div className="col-span-3">
-            <WbsSummaryCard summary={data.wbsSummary || []} />
+            {/* Right: Summary (col-span-3) */}
+            <div className="col-span-3">
+              <WbsSummaryCard summary={data.wbsSummary || []} />
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
