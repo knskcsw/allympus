@@ -45,9 +45,16 @@ export default function HolidaysPage() {
       setLoading(true);
       const res = await fetch(`/api/holidays?fiscalYear=${fiscalYear}`);
       const data = await res.json();
-      setHolidays(data);
+
+      if (res.ok) {
+        setHolidays(data);
+      } else {
+        console.error("Failed to fetch holidays:", data);
+        setHolidays([]);
+      }
     } catch (error) {
       console.error("Failed to fetch holidays:", error);
+      setHolidays([]);
     } finally {
       setLoading(false);
     }
