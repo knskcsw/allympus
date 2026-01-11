@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -454,14 +454,14 @@ export default function KadminPage() {
                 {/* ヘッダー第2行: 予測/実績 */}
                 <TableRow>
                   {MONTHS.map((month) => (
-                    <>
-                      <TableHead key={`${month}-est`} className="text-center text-xs min-w-[80px]">
+                    <Fragment key={`${month}-header`}>
+                      <TableHead className="text-center text-xs min-w-[80px]">
                         予測
                       </TableHead>
-                      <TableHead key={`${month}-act`} className="text-center text-xs min-w-[80px]">
+                      <TableHead className="text-center text-xs min-w-[80px]">
                         実績
                       </TableHead>
-                    </>
+                    </Fragment>
                   ))}
                 </TableRow>
               </TableHeader>
@@ -474,8 +474,8 @@ export default function KadminPage() {
                     </TableCell>
                     {/* 12ヶ月×2列 */}
                     {MONTHS.map((month) => (
-                      <>
-                        <TableCell key={`${month}-est`}>
+                      <Fragment key={`${project.id}-${month}`}>
+                        <TableCell>
                           <Input
                             type="number"
                             step="0.5"
@@ -487,7 +487,7 @@ export default function KadminPage() {
                             className="h-8 text-right"
                           />
                         </TableCell>
-                        <TableCell key={`${month}-act`}>
+                        <TableCell>
                           <Input
                             type="number"
                             step="0.5"
@@ -499,7 +499,7 @@ export default function KadminPage() {
                             className="h-8 text-right"
                           />
                         </TableCell>
-                      </>
+                      </Fragment>
                     ))}
                     {/* 年間合計列 */}
                     <TableCell className="text-right font-medium bg-muted">
@@ -517,11 +517,11 @@ export default function KadminPage() {
                     休暇
                   </TableCell>
                   {MONTHS.map((month) => (
-                    <>
-                      <TableCell key={`${month}-est`} className="text-center text-sm text-muted-foreground">
+                    <Fragment key={`vacation-${month}`}>
+                      <TableCell className="text-center text-sm text-muted-foreground">
                         -
                       </TableCell>
-                      <TableCell key={`${month}-act`} className="bg-blue-50 dark:bg-blue-950">
+                      <TableCell className="bg-blue-50 dark:bg-blue-950">
                         <Input
                           type="number"
                           step="0.5"
@@ -531,7 +531,7 @@ export default function KadminPage() {
                           className="h-8 text-right"
                         />
                       </TableCell>
-                    </>
+                    </Fragment>
                   ))}
                   {/* 年間合計 */}
                   <TableCell className="text-center text-muted-foreground bg-blue-100 dark:bg-blue-900">

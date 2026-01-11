@@ -38,7 +38,12 @@ export default function DailyPage() {
     try {
       const dateStr = format(selectedDate, "yyyy-MM-dd");
       const response = await fetch(`/api/daily?date=${dateStr}`);
-      const dailyData = await response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to fetch daily data");
+      }
+      const responseText = await response.text();
+      const dailyData = responseText ? JSON.parse(responseText) : null;
       setData(dailyData);
     } catch (error) {
       console.error("Failed to fetch daily data:", error);
@@ -51,7 +56,12 @@ export default function DailyPage() {
   const fetchProjects = useCallback(async () => {
     try {
       const response = await fetch("/api/projects");
-      const projectsData = await response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to fetch projects");
+      }
+      const responseText = await response.text();
+      const projectsData = responseText ? JSON.parse(responseText) : [];
       setProjects(projectsData);
     } catch (error) {
       console.error("Failed to fetch projects:", error);
