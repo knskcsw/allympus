@@ -548,14 +548,14 @@ export default function KadminPage() {
                     月別合計
                   </TableCell>
                   {MONTHS.map((month) => (
-                    <>
-                      <TableCell key={`${month}-est`} className="text-right">
+                    <Fragment key={`month-total-${month}`}>
+                      <TableCell className="text-right">
                         {calculateMonthTotal(month, "estimatedHours").toFixed(1)}h
                       </TableCell>
-                      <TableCell key={`${month}-act`} className="text-right">
+                      <TableCell className="text-right">
                         {calculateMonthTotal(month, "actualHours").toFixed(1)}h
                       </TableCell>
-                    </>
+                    </Fragment>
                   ))}
                   {/* 総合計 */}
                   <TableCell className="text-right bg-green-100 dark:bg-green-900">

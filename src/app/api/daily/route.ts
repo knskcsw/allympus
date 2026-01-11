@@ -151,8 +151,15 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Failed to load daily data:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to load daily data";
     return NextResponse.json(
-      { error: "Failed to load daily data" },
+      {
+        error:
+          process.env.NODE_ENV === "production"
+            ? "Failed to load daily data"
+            : message,
+      },
       { status: 500 }
     );
   }

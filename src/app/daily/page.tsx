@@ -25,6 +25,7 @@ export default function DailyPage() {
   const [data, setData] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [checkInTime, setCheckInTime] = useState(
     format(new Date(), "HH:mm")
   );
@@ -35,18 +36,27 @@ export default function DailyPage() {
   // Fetch daily data
   const fetchDailyData = useCallback(async () => {
     setIsLoading(true);
+    setErrorMessage(null);
     try {
       const dateStr = format(selectedDate, "yyyy-MM-dd");
       const response = await fetch(`/api/daily?date=${dateStr}`);
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || "Failed to fetch daily data");
-      }
       const responseText = await response.text();
+      if (!response.ok) {
+        let message = responseText;
+        try {
+          message = JSON.parse(responseText).error || responseText;
+        } catch {
+          // Fallback to raw text when not JSON.
+        }
+        throw new Error(message || "Failed to fetch daily data");
+      }
       const dailyData = responseText ? JSON.parse(responseText) : null;
       setData(dailyData);
     } catch (error) {
       console.error("Failed to fetch daily data:", error);
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to fetch daily data"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -56,11 +66,16 @@ export default function DailyPage() {
   const fetchProjects = useCallback(async () => {
     try {
       const response = await fetch("/api/projects");
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || "Failed to fetch projects");
-      }
       const responseText = await response.text();
+      if (!response.ok) {
+        let message = responseText;
+        try {
+          message = JSON.parse(responseText).error || responseText;
+        } catch {
+          // Fallback to raw text when not JSON.
+        }
+        throw new Error(message || "Failed to fetch projects");
+      }
       const projectsData = responseText ? JSON.parse(responseText) : [];
       setProjects(projectsData);
     } catch (error) {
@@ -259,10 +274,34 @@ export default function DailyPage() {
     }
   };
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-lg">読み込み中...</div>
+      </div>
+    );
+  }
+
+  if (errorMessage) {
+    return (
+      <div className="flex items-center justify-center h-screen px-6">
+        <Card className="w-full max-w-xl">
+          <CardHeader>
+            <CardTitle>読み込みに失敗しました</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{errorMessage}</p>
+            <Button onClick={fetchDailyData}>再読み込み</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-lg">データが見つかりません</div>
       </div>
     );
   }
