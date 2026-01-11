@@ -140,7 +140,7 @@ export default function AttendancePage() {
           <CardTitle>This Month&apos;s Records</CardTitle>
         </CardHeader>
         <CardContent>
-          <AttendanceList attendances={attendances} />
+          <AttendanceList attendances={attendances} onUpdate={fetchData} />
         </CardContent>
       </Card>
     </div>
