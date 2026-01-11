@@ -77,7 +77,7 @@ export default function EvmPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [data, setData] = useState<EvmData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"daily" | "cumulative">("cumulative");
+  const [viewMode, setViewMode] = useState<"daily" | "cumulative" | "acpv">("cumulative");
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [fixedTasks, setFixedTasks] = useState<FixedTask[]>([]);
   const [isTaskLoading, setIsTaskLoading] = useState(false);
@@ -89,6 +89,7 @@ export default function EvmPage() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const pvColor = "#3b82f6";
   const acColor = "#ef4444";
+  const acpvColor = "#f59e0b";
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
@@ -291,6 +292,14 @@ export default function EvmPage() {
             >
               日別
             </Button>
+            <Button
+              variant={viewMode === "acpv" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("acpv")}
+              className="rounded-full"
+            >
+              CBI
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" onClick={handlePrevMonth}>
@@ -323,8 +332,35 @@ export default function EvmPage() {
                   return sum;
                 });
               };
-              const pvSeries = viewMode === "daily" ? project.pvSeries : cumulative(project.pvSeries);
-              const acSeries = viewMode === "daily" ? project.acSeries : cumulative(project.acSeries);
+              const pvCumulative = cumulative(project.pvSeries);
+              const acCumulative = cumulative(project.acSeries);
+              const pvSeries = viewMode === "daily" ? project.pvSeries : pvCumulative;
+              const acSeries = viewMode === "daily" ? project.acSeries : acCumulative;
+              const acpvSeries = pvCumulative.map((pvValue, index) => {
+                const acValue = acCumulative[index] ?? 0;
+                return pvValue > 0 ? acValue / pvValue : 0;
+              });
+              const chartSeries =
+                viewMode === "acpv"
+                  ? [
+                      {
+                        label: "CBI (AC/PV)",
+                        color: acpvColor,
+                        data: acpvSeries,
+                      },
+                    ]
+                  : [
+                      {
+                        label: "PV",
+                        color: pvColor,
+                        data: pvSeries,
+                      },
+                      {
+                        label: "AC",
+                        color: acColor,
+                        data: acSeries,
+                      },
+                    ];
 
               return (
                 <Card key={project.projectId} className="relative overflow-hidden">
@@ -340,28 +376,29 @@ export default function EvmPage() {
                   <CardContent className="space-y-4">
                     <EvmLineChart
                       dates={data.days}
-                      series={[
-                        {
-                          label: "PV",
-                          color: pvColor,
-                          data: pvSeries,
-                        },
-                        {
-                          label: "AC",
-                          color: acColor,
-                          data: acSeries,
-                        },
-                      ]}
+                      series={chartSeries}
+                      valueFormatter={
+                        viewMode === "acpv" ? (value) => `${value.toFixed(2)}x` : undefined
+                      }
+                      referenceLines={
+                        viewMode === "acpv"
+                          ? [
+                              {
+                                value: 1,
+                                color: "rgba(148,163,184,0.7)",
+                                dasharray: "4 4",
+                              },
+                            ]
+                          : undefined
+                      }
                     />
                     <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: pvColor }} />
-                        PV
-                      </span>
-                      <span className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: acColor }} />
-                        AC
-                      </span>
+                      {chartSeries.map((series) => (
+                        <span key={series.label} className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: series.color }} />
+                          {series.label}
+                        </span>
+                      ))}
                       <span>
                         Fixed {formatHours(project.totals.fixedHours)} / Est {formatHours(project.totals.estimatedHours)}
                       </span>
@@ -456,12 +493,19 @@ export default function EvmPage() {
                       const variableHours = Math.max(pvHours - fixedHours, 0);
 
                       cells.push(
-                        <button
+                        <div
                           key={key}
-                          type="button"
+                          role="button"
+                          tabIndex={0}
                           onClick={() => toggleDateSelection(key)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              toggleDateSelection(key);
+                            }
+                          }}
                           className={[
-                            "min-h-[150px] rounded-md border p-2 text-left transition",
+                            "min-h-[150px] rounded-md border p-2 text-left transition cursor-pointer",
                             isSelected ? "ring-2 ring-primary" : "hover:border-primary/60",
                             colorClass,
                           ].join(" ")}
@@ -507,7 +551,7 @@ export default function EvmPage() {
                               ))
                             )}
                           </div>
-                        </button>
+                        </div>
                       );
                     });
 

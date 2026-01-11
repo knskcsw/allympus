@@ -9,9 +9,17 @@ type Series = {
   data: number[];
 };
 
+type ReferenceLine = {
+  value: number;
+  color?: string;
+  dasharray?: string;
+};
+
 type EvmLineChartProps = {
   dates: string[];
   series: Series[];
+  valueFormatter?: (value: number) => string;
+  referenceLines?: ReferenceLine[];
 };
 
 type ChartPoint = {
@@ -23,9 +31,13 @@ type ChartPoint = {
 const height = 120;
 const padding = 12;
 
-const toId = (label: string) => `evm-${label.toLowerCase().replace(/\s+/g, "-")}`;
+const toId = (label: string) =>
+  `evm-${label.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-_]/g, "")}`;
 
-export default function EvmLineChart({ dates, series }: EvmLineChartProps) {
+const defaultValueFormatter = (value: number) => `${value.toFixed(1)}h`;
+
+export default function EvmLineChart({ dates, series, valueFormatter, referenceLines }: EvmLineChartProps) {
+  const formatValue = valueFormatter ?? defaultValueFormatter;
   const chartRef = useRef<HTMLDivElement>(null);
   const plotRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -33,7 +45,8 @@ export default function EvmLineChart({ dates, series }: EvmLineChartProps) {
   const [plotSize, setPlotSize] = useState({ width: 0, height: 0 });
 
   const values = series.flatMap((line) => line.data);
-  const maxValue = Math.max(1, ...values);
+  const referenceValues = (referenceLines ?? []).map((line) => line.value);
+  const maxValue = Math.max(1, ...values, ...referenceValues);
   const count = dates.length;
   const firstDate = dates[0];
   const lastDate = dates[dates.length - 1];
@@ -63,6 +76,12 @@ export default function EvmLineChart({ dates, series }: EvmLineChartProps) {
       id: toId(line.label),
     };
   });
+
+  const getYForValue = (value: number) => {
+    const ratio = maxValue === 0 ? 0 : value / maxValue;
+    const clamped = Math.max(0, Math.min(1, ratio));
+    return padding + (1 - clamped) * (height - padding * 2);
+  };
 
   const handleMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!chartRef.current || count === 0) return;
@@ -130,6 +149,21 @@ export default function EvmLineChart({ dates, series }: EvmLineChartProps) {
             <rect x="0" y="0" width="100" height={height} fill="transparent" />
             <line x1="0" y1={height - padding} x2="100" y2={height - padding} stroke="rgba(148,163,184,0.4)" />
             <line x1="0" y1={height / 2} x2="100" y2={height / 2} stroke="rgba(148,163,184,0.25)" />
+            {(referenceLines ?? []).map((line, index) => {
+              const y = getYForValue(line.value);
+              return (
+                <line
+                  key={`ref-${index}`}
+                  x1="0"
+                  x2="100"
+                  y1={y}
+                  y2={y}
+                  stroke={line.color ?? "rgba(148,163,184,0.55)"}
+                  strokeWidth="1.6"
+                  strokeDasharray={line.dasharray}
+                />
+              );
+            })}
             {lineSeries.map((line) => (
               <g key={line.id}>
                 {line.areaPath ? <path d={line.areaPath} fill={`url(#${line.id}-area)`} /> : null}
@@ -206,7 +240,9 @@ export default function EvmLineChart({ dates, series }: EvmLineChartProps) {
                     <div key={`${line.id}-tooltip`} className="flex items-center gap-2 text-xs font-normal">
                       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: line.color }} />
                       <span>{line.label}</span>
-                      <span className="ml-auto font-semibold">{point ? `${point.value.toFixed(1)}h` : "0.0h"}</span>
+                      <span className="ml-auto font-semibold">
+                        {point ? formatValue(point.value) : formatValue(0)}
+                      </span>
                     </div>
                   );
                 })}
