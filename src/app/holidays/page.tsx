@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/select";
 import { HolidayCalendar } from "@/components/holidays/HolidayCalendar";
 import { AddHolidayDialog } from "@/components/holidays/AddHolidayDialog";
+import { BulkAddHolidayDialog } from "@/components/holidays/BulkAddHolidayDialog";
 import type { Holiday } from "@/generated/prisma/client";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, FileSpreadsheet, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import {
@@ -24,6 +25,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const FISCAL_YEARS = ["FY25", "FY26", "FY27"];
 
@@ -31,6 +40,7 @@ const HOLIDAY_TYPE_LABELS: { [key: string]: string } = {
   PUBLIC_HOLIDAY: "祝日",
   WEEKEND: "定休日",
   SPECIAL_HOLIDAY: "特別休日",
+  PAID_LEAVE: "有給休暇",
 };
 
 export default function HolidaysPage() {
@@ -38,7 +48,14 @@ export default function HolidaysPage() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([
+    "PUBLIC_HOLIDAY",
+    "WEEKEND",
+    "SPECIAL_HOLIDAY",
+    "PAID_LEAVE",
+  ]);
 
   const fetchHolidays = useCallback(async () => {
     try {
@@ -123,6 +140,18 @@ export default function HolidaysPage() {
     }
   };
 
+  const toggleType = (type: string) => {
+    setSelectedTypes((prev) =>
+      prev.includes(type)
+        ? prev.filter((t) => t !== type)
+        : [...prev, type]
+    );
+  };
+
+  const filteredHolidays = holidays.filter((holiday) =>
+    selectedTypes.includes(holiday.type)
+  );
+
   if (loading) {
     return <div className="p-6">読み込み中...</div>;
   }
@@ -132,9 +161,6 @@ export default function HolidaysPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Holidays</h1>
-          <p className="text-muted-foreground mt-2">
-            会社の年間休日を管理します
-          </p>
         </div>
         <div className="flex items-center gap-4">
           <Select value={fiscalYear} onValueChange={setFiscalYear}>
@@ -149,6 +175,10 @@ export default function HolidaysPage() {
               ))}
             </SelectContent>
           </Select>
+          <Button variant="outline" onClick={() => setBulkDialogOpen(true)}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            一括登録
+          </Button>
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             休日を追加
@@ -171,12 +201,37 @@ export default function HolidaysPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>休日一覧</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>休日一覧</CardTitle>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Filter className="mr-2 h-4 w-4" />
+                  表示フィルター
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>表示する休日の種類</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {Object.entries(HOLIDAY_TYPE_LABELS).map(([type, label]) => (
+                  <DropdownMenuCheckboxItem
+                    key={type}
+                    checked={selectedTypes.includes(type)}
+                    onCheckedChange={() => toggleType(type)}
+                  >
+                    {label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </CardHeader>
         <CardContent>
-          {holidays.length === 0 ? (
+          {filteredHolidays.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              登録された休日はありません
+              {holidays.length === 0
+                ? "登録された休日はありません"
+                : "選択された種類の休日はありません"}
             </p>
           ) : (
             <Table>
@@ -189,7 +244,7 @@ export default function HolidaysPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {holidays.map((holiday) => (
+                {filteredHolidays.map((holiday) => (
                   <TableRow key={holiday.id}>
                     <TableCell>
                       {format(new Date(holiday.date), "yyyy年M月d日(E)", {
@@ -222,6 +277,13 @@ export default function HolidaysPage() {
         onOpenChange={setDialogOpen}
         selectedDate={selectedDate}
         onAdd={handleAddHoliday}
+      />
+
+      <BulkAddHolidayDialog
+        open={bulkDialogOpen}
+        onOpenChange={setBulkDialogOpen}
+        fiscalYear={fiscalYear}
+        onComplete={fetchHolidays}
       />
     </div>
   );

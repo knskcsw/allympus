@@ -32,6 +32,7 @@ const HOLIDAY_TYPES = [
   { value: "PUBLIC_HOLIDAY", label: "祝日・国民の休日" },
   { value: "WEEKEND", label: "定休日（土日など）" },
   { value: "SPECIAL_HOLIDAY", label: "特別休日" },
+  { value: "PAID_LEAVE", label: "有給休暇" },
 ];
 
 export function AddHolidayDialog({

@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Type validation
-    const validTypes = ["PUBLIC_HOLIDAY", "WEEKEND", "SPECIAL_HOLIDAY"];
+    const validTypes = ["PUBLIC_HOLIDAY", "WEEKEND", "SPECIAL_HOLIDAY", "PAID_LEAVE"];
     if (!validTypes.includes(type)) {
       return NextResponse.json(
         {
