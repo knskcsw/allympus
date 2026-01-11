@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { format } from "date-fns";
+import { Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AttendanceList } from "@/components/attendance/AttendanceList";
 import type { Attendance } from "@/generated/prisma/client";
@@ -59,7 +60,12 @@ export default function AttendancePage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Attendance</h1>
+      <div className="flex items-center gap-3">
+        <div className="rounded-full bg-primary/10 p-2 text-primary">
+          <Clock className="h-5 w-5" />
+        </div>
+        <h1 className="text-3xl font-bold">Attendance</h1>
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>

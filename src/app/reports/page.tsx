@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight, Download } from "lucide-react";
 
 interface DailyData {
   date: string;
@@ -92,8 +92,13 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Reports</h1>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="rounded-full bg-primary/10 p-2 text-primary">
+            <BarChart3 className="h-5 w-5" />
+          </div>
+          <h1 className="text-3xl font-bold">Reports</h1>
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={handlePrevMonth}>
             <ChevronLeft className="h-4 w-4" />

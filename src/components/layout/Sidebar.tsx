@@ -18,6 +18,7 @@ import {
   LineChart,
   GripVertical,
   MoonStar,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const navigation = [
   { name: "Calendar", href: "/calendar", icon: Calendar },
   { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "EVM", href: "/evm", icon: LineChart },
+  { name: "Salary", href: "/salary", icon: Wallet },
 ];
 
 const MIN_WIDTH = 180;
