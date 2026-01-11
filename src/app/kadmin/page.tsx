@@ -1,8 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -43,6 +42,54 @@ const MONTH_NAMES = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "De
 const DEFAULT_WORKING_DAYS: { [key: number]: number } = {
   4: 21, 5: 21, 6: 22, 7: 23, 8: 22, 9: 21, 10: 23, 11: 21, 12: 22,
   1: 20, 2: 20, 3: 21
+};
+
+const parseNumber = (value: string | null) => {
+  if (!value) return 0;
+  const normalized = value.replace(/,/g, "").trim();
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+type EditableCellProps = {
+  value: number;
+  onCommit: (value: number) => void;
+  className?: string;
+  ariaLabel?: string;
+};
+
+const EditableCell = ({ value, onCommit, className, ariaLabel }: EditableCellProps) => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    if (document.activeElement === ref.current) return;
+    ref.current.textContent = String(value);
+  }, [value]);
+
+  const handleBlur = () => {
+    onCommit(parseNumber(ref.current?.textContent ?? ""));
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      ref.current?.blur();
+    }
+  };
+
+  return (
+    <div
+      ref={ref}
+      role="textbox"
+      aria-label={ariaLabel}
+      contentEditable
+      suppressContentEditableWarning
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      className={`min-h-[2rem] w-full whitespace-nowrap text-right tabular-nums outline-none ${className ?? ""}`}
+    />
+  );
 };
 
 export default function KadminPage() {
@@ -163,27 +210,25 @@ export default function KadminPage() {
     projectId: string,
     month: number,
     field: "estimatedHours" | "actualHours" | "overtimeHours" | "workingDays",
-    value: string
+    value: number
   ) => {
-    const numValue = parseFloat(value) || 0;
     setWorkHoursData((prev) => ({
       ...prev,
       [projectId]: {
         ...prev[projectId],
         [month]: {
           ...prev[projectId][month],
-          [field]: numValue,
+          [field]: value,
         },
       },
     }));
   };
 
-  const handleVacationChange = (month: number, value: string) => {
-    const numValue = parseFloat(value) || 0;
+  const handleVacationChange = (month: number, value: number) => {
     setVacationData((prev) => ({
       ...prev,
       [month]: {
-        hours: numValue,
+        hours: value,
       },
     }));
   };
@@ -226,8 +271,8 @@ export default function KadminPage() {
         }
 
         // Try to read estimated and actual hours
-        const estValue = parseFloat(cells[cellIndex]?.trim() || "0") || 0;
-        const actValue = parseFloat(cells[cellIndex + 1]?.trim() || "0") || 0;
+        const estValue = parseNumber(cells[cellIndex]?.trim() || "0");
+        const actValue = parseNumber(cells[cellIndex + 1]?.trim() || "0");
 
         updates[project.id][month].estimatedHours = estValue;
         updates[project.id][month].actualHours = actValue;
@@ -407,6 +452,8 @@ export default function KadminPage() {
     return <div className="p-6">Loading...</div>;
   }
 
+  const cellClass = "border border-muted-foreground/20 px-2 py-1";
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -469,43 +516,37 @@ export default function KadminPage() {
                 {/* プロジェクト行 */}
                 {projects.map((project) => (
                   <TableRow key={project.id}>
-                    <TableCell className="sticky left-0 bg-background font-medium z-10">
+                    <TableCell className="sticky left-0 bg-background font-medium z-10 border border-muted-foreground/20 px-2 py-1">
                       {project.code} - {project.name}
                     </TableCell>
                     {/* 12ヶ月×2列 */}
                     {MONTHS.map((month) => (
                       <Fragment key={`${project.id}-${month}`}>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            step="0.5"
-                            min="0"
+                        <TableCell className={cellClass}>
+                          <EditableCell
                             value={workHoursData[project.id]?.[month]?.estimatedHours || 0}
-                            onChange={(e) =>
-                              handleCellChange(project.id, month, "estimatedHours", e.target.value)
+                            onCommit={(value) =>
+                              handleCellChange(project.id, month, "estimatedHours", value)
                             }
-                            className="h-8 text-right"
+                            ariaLabel={`${project.code} ${MONTH_NAMES[MONTHS.indexOf(month)]} 予測`}
                           />
                         </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            step="0.5"
-                            min="0"
+                        <TableCell className={cellClass}>
+                          <EditableCell
                             value={workHoursData[project.id]?.[month]?.actualHours || 0}
-                            onChange={(e) =>
-                              handleCellChange(project.id, month, "actualHours", e.target.value)
+                            onCommit={(value) =>
+                              handleCellChange(project.id, month, "actualHours", value)
                             }
-                            className="h-8 text-right"
+                            ariaLabel={`${project.code} ${MONTH_NAMES[MONTHS.indexOf(month)]} 実績`}
                           />
                         </TableCell>
                       </Fragment>
                     ))}
                     {/* 年間合計列 */}
-                    <TableCell className="text-right font-medium bg-muted">
+                    <TableCell className="text-right font-medium bg-muted border border-muted-foreground/20 px-2 py-1">
                       {calculateYearTotal(project.id, "estimatedHours").toFixed(1)}h
                     </TableCell>
-                    <TableCell className="text-right font-medium bg-muted">
+                    <TableCell className="text-right font-medium bg-muted border border-muted-foreground/20 px-2 py-1">
                       {calculateYearTotal(project.id, "actualHours").toFixed(1)}h
                     </TableCell>
                   </TableRow>
@@ -513,62 +554,59 @@ export default function KadminPage() {
 
                 {/* 休暇行 */}
                 <TableRow className="bg-blue-50 dark:bg-blue-950">
-                  <TableCell className="sticky left-0 bg-blue-50 dark:bg-blue-950 font-medium z-10">
+                  <TableCell className="sticky left-0 bg-blue-50 dark:bg-blue-950 font-medium z-10 border border-muted-foreground/20 px-2 py-1">
                     休暇
                   </TableCell>
                   {MONTHS.map((month) => (
                     <Fragment key={`vacation-${month}`}>
-                      <TableCell className="text-center text-sm text-muted-foreground">
+                      <TableCell className="text-center text-sm text-muted-foreground border border-muted-foreground/20 px-2 py-1">
                         -
                       </TableCell>
-                      <TableCell className="bg-blue-50 dark:bg-blue-950">
-                        <Input
-                          type="number"
-                          step="0.5"
-                          min="0"
+                      <TableCell className="bg-blue-50 dark:bg-blue-950 border border-muted-foreground/20 px-2 py-1">
+                        <EditableCell
                           value={vacationData[month]?.hours || 0}
-                          onChange={(e) => handleVacationChange(month, e.target.value)}
-                          className="h-8 text-right"
+                          onCommit={(value) => handleVacationChange(month, value)}
+                          ariaLabel={`${MONTH_NAMES[MONTHS.indexOf(month)]} 休暇`}
                         />
                       </TableCell>
                     </Fragment>
                   ))}
                   {/* 年間合計 */}
-                  <TableCell className="text-center text-muted-foreground bg-blue-100 dark:bg-blue-900">
+                  <TableCell className="text-center text-muted-foreground bg-blue-100 dark:bg-blue-900 border border-muted-foreground/20 px-2 py-1">
                     -
                   </TableCell>
-                  <TableCell className="text-right font-medium bg-blue-100 dark:bg-blue-900">
+                  <TableCell className="text-right font-medium bg-blue-100 dark:bg-blue-900 border border-muted-foreground/20 px-2 py-1">
                     {calculateVacationTotal().toFixed(1)}h
                   </TableCell>
                 </TableRow>
 
                 {/* 月別合計行（縦方向集計） */}
                 <TableRow className="bg-green-50 dark:bg-green-950 font-bold">
-                  <TableCell className="sticky left-0 bg-green-50 dark:bg-green-950 z-10">
+                  <TableCell className="sticky left-0 bg-green-50 dark:bg-green-950 z-10 border border-muted-foreground/20 px-2 py-1">
                     月別合計
                   </TableCell>
                   {MONTHS.map((month) => (
                     <Fragment key={`month-total-${month}`}>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right border border-muted-foreground/20 px-2 py-1">
                         {calculateMonthTotal(month, "estimatedHours").toFixed(1)}h
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right border border-muted-foreground/20 px-2 py-1">
                         {calculateMonthTotal(month, "actualHours").toFixed(1)}h
                       </TableCell>
                     </Fragment>
                   ))}
                   {/* 総合計 */}
-                  <TableCell className="text-right bg-green-100 dark:bg-green-900">
+                  <TableCell className="text-right bg-green-100 dark:bg-green-900 border border-muted-foreground/20 px-2 py-1">
                     {calculateGrandTotal("estimatedHours").toFixed(1)}h
                   </TableCell>
-                  <TableCell className="text-right bg-green-100 dark:bg-green-900">
+                  <TableCell className="text-right bg-green-100 dark:bg-green-900 border border-muted-foreground/20 px-2 py-1">
                     {calculateGrandTotal("actualHours").toFixed(1)}h
                   </TableCell>
                 </TableRow>
 
                 {/* 残業時間行 */}
                 <TableRow className="bg-orange-50 dark:bg-orange-950 font-bold">
-                  <TableCell className="sticky left-0 bg-orange-50 dark:bg-orange-950 z-10">
+                  <TableCell className="sticky left-0 bg-orange-50 dark:bg-orange-950 z-10 border border-muted-foreground/20 px-2 py-1">
                     残業時間
                   </TableCell>
                   {MONTHS.map((month) => {
@@ -581,7 +619,7 @@ export default function KadminPage() {
                           overtime > 0
                             ? "text-orange-600 dark:text-orange-400"
                             : "text-muted-foreground"
-                        }`}
+                        } border border-muted-foreground/20 px-2 py-1`}
                       >
                         {overtime.toFixed(1)}h
                       </TableCell>
@@ -590,7 +628,7 @@ export default function KadminPage() {
                   {/* 年間残業時間合計 */}
                   <TableCell
                     colSpan={2}
-                    className="text-center bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400"
+                    className="text-center bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400 border border-muted-foreground/20 px-2 py-1"
                   >
                     {calculateYearOvertimeHours().toFixed(1)}h
                   </TableCell>
@@ -598,20 +636,20 @@ export default function KadminPage() {
 
                 {/* 標準時間行（参考情報） */}
                 <TableRow className="bg-muted/50">
-                  <TableCell className="sticky left-0 bg-muted/50 font-medium text-sm z-10">
+                  <TableCell className="sticky left-0 bg-muted/50 font-medium text-sm z-10 border border-muted-foreground/20 px-2 py-1">
                     標準時間
                   </TableCell>
                   {MONTHS.map((month) => {
                     const workingDays = workingDaysData[month] || DEFAULT_WORKING_DAYS[month] || 20;
                     const standardHours = calculateStandardHours(workingDays);
                     return (
-                      <TableCell key={`${month}-std`} colSpan={2} className="text-center text-sm">
+                      <TableCell key={`${month}-std`} colSpan={2} className="text-center text-sm border border-muted-foreground/20 px-2 py-1">
                         {standardHours.toFixed(1)}h ({workingDays}日)
                       </TableCell>
                     );
                   })}
                   {/* 年間合計 */}
-                  <TableCell colSpan={2} className="text-center text-sm bg-muted">
+                  <TableCell colSpan={2} className="text-center text-sm bg-muted border border-muted-foreground/20 px-2 py-1">
                     {calculateYearStandardHours().toFixed(1)}h
                   </TableCell>
                 </TableRow>
