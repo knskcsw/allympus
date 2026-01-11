@@ -8,7 +8,8 @@ export async function PATCH(
   try {
     const { id } = params;
     const body = await request.json();
-    const { clockIn, clockOut, breakMinutes, note } = body;
+    const { clockIn, clockOut, breakMinutes, note, workMode, sleepHours } =
+      body;
 
     const attendance = await prisma.attendance.update({
       where: { id },
@@ -16,6 +17,8 @@ export async function PATCH(
         clockIn: clockIn ? new Date(clockIn) : null,
         clockOut: clockOut ? new Date(clockOut) : null,
         breakMinutes: breakMinutes ?? 0,
+        workMode: workMode ?? null,
+        sleepHours: sleepHours ?? null,
         note: note || null,
       },
     });

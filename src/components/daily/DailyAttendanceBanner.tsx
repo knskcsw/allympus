@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
-import { format, addDays, subDays, startOfToday } from "date-fns";
+import { format, addDays, subDays, startOfDay, startOfToday } from "date-fns";
 import { ja } from "date-fns/locale";
 
 interface Attendance {
@@ -12,6 +12,8 @@ interface Attendance {
   clockIn: Date | null;
   clockOut: Date | null;
   breakMinutes: number;
+  workMode?: string | null;
+  sleepHours?: number | null;
   note: string | null;
 }
 
@@ -19,12 +21,18 @@ interface DailyAttendanceBannerProps {
   attendance: Attendance | null;
   currentDate: Date;
   onDateChange: (date: Date) => void;
+  maxDate?: Date;
+  onClockOut?: () => void;
+  showClockOut?: boolean;
 }
 
 export default function DailyAttendanceBanner({
   attendance,
   currentDate,
   onDateChange,
+  maxDate,
+  onClockOut,
+  showClockOut = false,
 }: DailyAttendanceBannerProps) {
   // Calculate total working hours
   const calculateWorkingHours = () => {
@@ -48,7 +56,9 @@ export default function DailyAttendanceBanner({
   };
 
   const handleNextDay = () => {
-    onDateChange(addDays(currentDate, 1));
+    const nextDate = addDays(currentDate, 1);
+    if (maxDate && startOfDay(nextDate) > startOfDay(maxDate)) return;
+    onDateChange(nextDate);
   };
 
   const handleToday = () => {
@@ -57,6 +67,10 @@ export default function DailyAttendanceBanner({
 
   const isToday =
     format(currentDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+  const currentDay = startOfDay(currentDate);
+  const maxDay = maxDate ? startOfDay(maxDate) : null;
+  const isNextDisabled = maxDay ? addDays(currentDay, 1) > maxDay : false;
+  const isFutureDate = maxDay ? currentDay > maxDay : false;
 
   return (
     <Card className="bg-muted/30">
@@ -71,7 +85,12 @@ export default function DailyAttendanceBanner({
               {format(currentDate, "yyyy年 M月d日", { locale: ja })} (
               {format(currentDate, "E", { locale: ja })})
             </span>
-            <Button variant="outline" size="icon" onClick={handleNextDay}>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleNextDay}
+              disabled={isNextDisabled}
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
             <Button
@@ -110,6 +129,21 @@ export default function DailyAttendanceBanner({
                   <span className="font-medium">{attendance.breakMinutes}分</span>
                 </div>
                 <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground">出社形態:</span>
+                  <span className="font-medium">
+                    {attendance.workMode || "-"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground">睡眠:</span>
+                  <span className="font-medium">
+                    {attendance.sleepHours !== null &&
+                    attendance.sleepHours !== undefined
+                      ? `${attendance.sleepHours}h`
+                      : "-"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1">
                   <span className="text-muted-foreground">総労働:</span>
                   <span className="font-semibold">
                     {workingHours.toFixed(2)}h
@@ -117,7 +151,14 @@ export default function DailyAttendanceBanner({
                 </div>
               </>
             ) : (
-              <span className="text-muted-foreground">勤怠記録なし</span>
+              <span className="text-muted-foreground">
+                {isFutureDate ? "未来日は表示できません" : "勤怠記録なし"}
+              </span>
+            )}
+            {showClockOut && attendance?.clockIn && !attendance.clockOut && (
+              <Button size="sm" onClick={onClockOut}>
+                退勤する
+              </Button>
             )}
           </div>
         </div>

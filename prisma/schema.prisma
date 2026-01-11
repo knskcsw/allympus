@@ -13,12 +13,27 @@ model Attendance {
   clockIn      DateTime?
   clockOut     DateTime?
   breakMinutes Int       @default(0)
+  workMode     String?
+  sleepHours   Float?
   note         String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   @@unique([date])
   @@map("attendances")
+}
+
+model MorningRoutineItem {
+  id        String   @id @default(cuid())
+  date      DateTime
+  title     String
+  completed Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@map("morning_routine_items")
 }
 
 model Project {

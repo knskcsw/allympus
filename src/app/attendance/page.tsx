@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClockInOutButton } from "@/components/attendance/ClockInOutButton";
 import { AttendanceList } from "@/components/attendance/AttendanceList";
 import type { Attendance } from "@/generated/prisma/client";
 
@@ -90,10 +89,6 @@ export default function AttendancePage() {
               <div className="text-sm text-muted-foreground">Working Time</div>
               <div className="text-xl font-semibold">{formatWorkingTime()}</div>
             </div>
-            <ClockInOutButton
-              attendance={todayAttendance}
-              onClockAction={fetchData}
-            />
           </CardContent>
         </Card>
 

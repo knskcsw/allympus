@@ -59,6 +59,8 @@ export function AttendanceList({ attendances, onUpdate }: AttendanceListProps) {
             <TableHead>Clock In</TableHead>
             <TableHead>Clock Out</TableHead>
             <TableHead>Break</TableHead>
+            <TableHead>Work Mode</TableHead>
+            <TableHead>Sleep</TableHead>
             <TableHead>Working Hours</TableHead>
             <TableHead>Note</TableHead>
             <TableHead className="w-[80px]">Actions</TableHead>
@@ -83,6 +85,13 @@ export function AttendanceList({ attendances, onUpdate }: AttendanceListProps) {
                   : "-"}
               </TableCell>
               <TableCell>{attendance.breakMinutes}m</TableCell>
+              <TableCell>{attendance.workMode || "-"}</TableCell>
+              <TableCell>
+                {attendance.sleepHours !== null &&
+                attendance.sleepHours !== undefined
+                  ? `${attendance.sleepHours}h`
+                  : "-"}
+              </TableCell>
               <TableCell>
                 {attendance.clockIn && attendance.clockOut
                   ? formatDuration(

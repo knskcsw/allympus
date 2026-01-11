@@ -18,12 +18,13 @@ export async function GET(request: NextRequest) {
   const dayEnd = endOfDay(date);
 
   // Fetch all data in parallel
-  const [attendance, dailyTasks, timeEntries] = await Promise.all([
-    // 1. Attendance for the date
-    prisma.attendance.findFirst({
-      where: {
-        date: {
-          gte: dayStart,
+  const [attendance, dailyTasks, timeEntries, morningRoutine] =
+    await Promise.all([
+      // 1. Attendance for the date
+      prisma.attendance.findFirst({
+        where: {
+          date: {
+            gte: dayStart,
           lte: dayEnd,
         },
       },
@@ -47,39 +48,48 @@ export async function GET(request: NextRequest) {
       },
     }),
 
-    // 3. Time entries for the date (with relations)
-    prisma.timeEntry.findMany({
-      where: {
-        startTime: {
-          gte: dayStart,
-          lte: dayEnd,
-        },
-      },
-      orderBy: { startTime: "asc" },
-      include: {
-        dailyTask: {
-          select: {
-            id: true,
-            title: true,
+      // 3. Time entries for the date (with relations)
+      prisma.timeEntry.findMany({
+        where: {
+          startTime: {
+            gte: dayStart,
+            lte: dayEnd,
           },
         },
-        project: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
-            abbreviation: true,
+        orderBy: { startTime: "asc" },
+        include: {
+          dailyTask: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+          project: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              abbreviation: true,
+            },
+          },
+          wbs: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-        wbs: {
-          select: {
-            id: true,
-            name: true,
+      }),
+      prisma.morningRoutineItem.findMany({
+        where: {
+          date: {
+            gte: dayStart,
+            lte: dayEnd,
           },
         },
-      },
-    }),
-  ]);
+        orderBy: { sortOrder: "asc" },
+      }),
+    ]);
 
   // Calculate total time spent for each daily task
   const tasksWithTotalTime = dailyTasks.map((task) => ({
@@ -133,6 +143,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     date: dateParam,
     attendance,
+    morningRoutine,
     dailyTasks: tasksWithTotalTime,
     timeEntries,
     wbsSummary,
