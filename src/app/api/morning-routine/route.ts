@@ -33,3 +33,55 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(items);
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const title =
+      typeof body?.title === "string" ? body.title.trim() : "";
+    const dateParam = body?.date;
+
+    if (!title || !dateParam) {
+      return NextResponse.json(
+        { error: "title and date are required" },
+        { status: 400 }
+      );
+    }
+
+    const date = new Date(dateParam);
+    if (Number.isNaN(date.getTime())) {
+      return NextResponse.json({ error: "Invalid date" }, { status: 400 });
+    }
+
+    const dayStart = startOfDay(date);
+    const dayEnd = endOfDay(date);
+    const existing = await prisma.morningRoutineItem.aggregate({
+      where: {
+        date: {
+          gte: dayStart,
+          lte: dayEnd,
+        },
+      },
+      _max: { sortOrder: true },
+    });
+
+    const nextSortOrder = (existing._max.sortOrder ?? -1) + 1;
+
+    const item = await prisma.morningRoutineItem.create({
+      data: {
+        date: dayStart,
+        title,
+        completed: false,
+        sortOrder: nextSortOrder,
+      },
+    });
+
+    return NextResponse.json(item, { status: 201 });
+  } catch (error) {
+    console.error("Failed to create morning routine item:", error);
+    return NextResponse.json(
+      { error: "Failed to create morning routine item" },
+      { status: 500 }
+    );
+  }
+}

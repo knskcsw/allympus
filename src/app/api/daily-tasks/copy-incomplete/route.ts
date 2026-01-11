@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
           status: "TODO", // Reset status to TODO
           priority: task.priority,
           estimatedMinutes: task.estimatedMinutes,
+          sortOrder: task.sortOrder,
         },
       });
     })

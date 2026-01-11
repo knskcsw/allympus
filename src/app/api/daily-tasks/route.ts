@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
   const dailyTasks = await prisma.dailyTask.findMany({
     where,
-    orderBy: [{ date: "desc" }, { status: "asc" }, { createdAt: "desc" }],
+    orderBy: [{ date: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
     include: {
       timeEntries: {
         select: {
@@ -66,14 +66,28 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const dayStart = startOfDay(new Date(date));
+  const dayEnd = endOfDay(new Date(date));
+  const existing = await prisma.dailyTask.aggregate({
+    where: {
+      date: {
+        gte: dayStart,
+        lte: dayEnd,
+      },
+    },
+    _max: { sortOrder: true },
+  });
+  const nextSortOrder = (existing._max.sortOrder ?? -1) + 1;
+
   const dailyTask = await prisma.dailyTask.create({
     data: {
-      date: startOfDay(new Date(date)),
+      date: dayStart,
       title,
       description,
       status: status || "TODO",
       priority: priority || "MEDIUM",
       estimatedMinutes,
+      sortOrder: nextSortOrder,
     },
   });
 

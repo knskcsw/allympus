@@ -74,20 +74,26 @@ export default function DailyAttendanceBanner({
 
   return (
     <Card className="bg-muted/30">
-      <CardContent className="py-3">
+      <CardContent className="py-2">
         <div className="flex items-center justify-between">
           {/* Left: Date Navigation - Reportsページと同じスタイル */}
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={handlePrevDay}>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handlePrevDay}
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-lg font-medium min-w-[180px] text-center">
+            <span className="text-sm font-medium min-w-[160px] text-center">
               {format(currentDate, "yyyy年 M月d日", { locale: ja })} (
               {format(currentDate, "E", { locale: ja })})
             </span>
             <Button
               variant="outline"
               size="icon"
+              className="h-8 w-8"
               onClick={handleNextDay}
               disabled={isNextDisabled}
             >
@@ -105,7 +111,7 @@ export default function DailyAttendanceBanner({
           </div>
 
           {/* Right: Attendance Info - よりコンパクトに */}
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-3 text-xs leading-tight">
             {attendance ? (
               <>
                 <div className="flex items-center gap-1">

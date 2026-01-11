@@ -35,6 +35,7 @@ export async function PUT(
     status,
     priority,
     estimatedMinutes,
+    sortOrder,
   } = body;
 
   const updateData: any = {};
@@ -45,6 +46,7 @@ export async function PUT(
   if (status !== undefined) updateData.status = status;
   if (priority !== undefined) updateData.priority = priority;
   if (estimatedMinutes !== undefined) updateData.estimatedMinutes = estimatedMinutes;
+  if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
 
   const dailyTask = await prisma.dailyTask.update({
     where: { id },

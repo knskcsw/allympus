@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
               lte: dayEnd,
             },
           },
-          orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
           include: {
             timeEntries: {
               select: {

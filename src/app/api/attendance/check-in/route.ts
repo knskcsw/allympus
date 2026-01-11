@@ -133,6 +133,7 @@ export async function POST(request: NextRequest) {
           status: "TODO",
           priority: task.priority,
           estimatedMinutes: task.estimatedMinutes,
+          sortOrder: task.sortOrder,
         })),
       });
     }
