@@ -56,8 +56,8 @@ export async function GET(request: NextRequest) {
       aggregated[entry.projectId][month] = 0;
     }
 
-    // Convert duration from minutes to hours
-    aggregated[entry.projectId][month] += entry.duration / 60;
+    // Convert duration from seconds to hours
+    aggregated[entry.projectId][month] += entry.duration / 3600;
   }
 
   // Convert to array format
