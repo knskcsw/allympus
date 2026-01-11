@@ -14,6 +14,8 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Briefcase,
+  CalendarRange,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -23,6 +25,8 @@ const navigation = [
   { name: "Daily", href: "/daily", icon: CalendarDays },
   { name: "Attendance", href: "/attendance", icon: Clock },
   { name: "Projects", href: "/projects", icon: FolderKanban },
+  { name: "Kadmin", href: "/kadmin", icon: Briefcase },
+  { name: "Holidays", href: "/holidays", icon: CalendarRange },
   { name: "Calendar", href: "/calendar", icon: Calendar },
   { name: "Reports", href: "/reports", icon: BarChart3 },
 ];

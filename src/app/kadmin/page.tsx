@@ -31,11 +31,15 @@ interface WorkHoursData {
   };
 }
 
+interface VacationData {
+  [month: number]: { hours: number };
+}
+
 const FISCAL_YEAR = "FY25";
 const MONTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]; // April to March
 const MONTH_NAMES = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
 
-// Default working days per month (営業日)
+// Default working days per month (営業日) - fallback if API fails
 const DEFAULT_WORKING_DAYS: { [key: number]: number } = {
   4: 21, 5: 21, 6: 22, 7: 23, 8: 22, 9: 21, 10: 23, 11: 21, 12: 22,
   1: 20, 2: 20, 3: 21
@@ -44,12 +48,25 @@ const DEFAULT_WORKING_DAYS: { [key: number]: number } = {
 export default function KadminPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [workHoursData, setWorkHoursData] = useState<WorkHoursData>({});
+  const [vacationData, setVacationData] = useState<VacationData>({});
+  const [workingDaysData, setWorkingDaysData] = useState<{ [month: number]: number }>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    fetchAllData();
   }, []);
+
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      await Promise.all([fetchData(), fetchVacations(), fetchWorkingDays()]);
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -95,9 +112,38 @@ export default function KadminPage() {
 
       setWorkHoursData(transformed);
     } catch (error) {
-      console.error("Failed to fetch data:", error);
-    } finally {
-      setLoading(false);
+      console.error("Failed to fetch work hours data:", error);
+    }
+  };
+
+  const fetchVacations = async () => {
+    try {
+      const res = await fetch(`/api/kadmin/vacations?fiscalYear=${FISCAL_YEAR}`);
+      const vacations = await res.json();
+
+      // Aggregate by month
+      const aggregated: VacationData = {};
+      for (const vacation of vacations) {
+        const date = new Date(vacation.date);
+        const month = date.getMonth() + 1; // 1-12
+        if (!aggregated[month]) aggregated[month] = { hours: 0 };
+        aggregated[month].hours += vacation.hours;
+      }
+      setVacationData(aggregated);
+    } catch (error) {
+      console.error("Failed to fetch vacations:", error);
+    }
+  };
+
+  const fetchWorkingDays = async () => {
+    try {
+      const res = await fetch(`/api/holidays/working-days?fiscalYear=${FISCAL_YEAR}`);
+      const data = await res.json();
+      setWorkingDaysData(data.workingDays);
+    } catch (error) {
+      console.error("Failed to fetch working days:", error);
+      // Fallback to default working days
+      setWorkingDaysData(DEFAULT_WORKING_DAYS);
     }
   };
 
@@ -124,10 +170,48 @@ export default function KadminPage() {
     return workingDays * 7.5;
   };
 
-  const calculateTotal = (projectId: string, field: "estimatedHours" | "actualHours" | "overtimeHours") => {
+  // 各プロジェクトの年間合計（横方向）
+  const calculateYearTotal = (projectId: string, field: "estimatedHours" | "actualHours") => {
     let total = 0;
     for (const month of MONTHS) {
       total += workHoursData[projectId]?.[month]?.[field] || 0;
+    }
+    return total;
+  };
+
+  // 各月の全プロジェクト合計（縦方向）
+  const calculateMonthTotal = (month: number, field: "estimatedHours" | "actualHours") => {
+    let total = 0;
+    for (const project of projects) {
+      total += workHoursData[project.id]?.[month]?.[field] || 0;
+    }
+    return total;
+  };
+
+  // 総合計（全プロジェクト・全月）
+  const calculateGrandTotal = (field: "estimatedHours" | "actualHours") => {
+    let total = 0;
+    for (const month of MONTHS) {
+      total += calculateMonthTotal(month, field);
+    }
+    return total;
+  };
+
+  // 休暇の年間合計
+  const calculateVacationTotal = () => {
+    let total = 0;
+    for (const month of MONTHS) {
+      total += vacationData[month]?.hours || 0;
+    }
+    return total;
+  };
+
+  // 年間標準稼働時間
+  const calculateYearStandardHours = () => {
+    let total = 0;
+    for (const month of MONTHS) {
+      const workingDays = workingDaysData[month] || DEFAULT_WORKING_DAYS[month] || 20;
+      total += calculateStandardHours(workingDays);
     }
     return total;
   };
@@ -193,28 +277,45 @@ export default function KadminPage() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
+                {/* ヘッダー第1行: 月名 */}
                 <TableRow>
-                  <TableHead className="w-[200px] sticky left-0 bg-background">プロジェクト</TableHead>
-                  <TableHead className="w-[100px]">項目</TableHead>
+                  <TableHead rowSpan={2} className="w-[200px] sticky left-0 bg-background z-10">
+                    プロジェクト
+                  </TableHead>
                   {MONTH_NAMES.map((name) => (
-                    <TableHead key={name} className="text-center min-w-[100px]">
+                    <TableHead key={name} colSpan={2} className="text-center min-w-[160px]">
                       {name}
                     </TableHead>
                   ))}
-                  <TableHead className="text-center min-w-[100px]">合計</TableHead>
+                  <TableHead rowSpan={2} colSpan={2} className="text-center min-w-[160px] bg-muted">
+                    年間合計
+                  </TableHead>
+                </TableRow>
+                {/* ヘッダー第2行: 予測/実績 */}
+                <TableRow>
+                  {MONTHS.map((month) => (
+                    <>
+                      <TableHead key={`${month}-est`} className="text-center text-xs min-w-[80px]">
+                        予測
+                      </TableHead>
+                      <TableHead key={`${month}-act`} className="text-center text-xs min-w-[80px]">
+                        実績
+                      </TableHead>
+                    </>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {/* プロジェクト行 */}
                 {projects.map((project) => (
-                  <>
-                    {/* 見積もり行 */}
-                    <TableRow key={`${project.id}-estimated`}>
-                      <TableCell rowSpan={4} className="font-medium sticky left-0 bg-background">
-                        {project.code} - {project.name}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">見積</TableCell>
-                      {MONTHS.map((month, idx) => (
-                        <TableCell key={month}>
+                  <TableRow key={project.id}>
+                    <TableCell className="sticky left-0 bg-background font-medium z-10">
+                      {project.code} - {project.name}
+                    </TableCell>
+                    {/* 12ヶ月×2列 */}
+                    {MONTHS.map((month) => (
+                      <>
+                        <TableCell key={`${month}-est`}>
                           <Input
                             type="number"
                             step="0.5"
@@ -226,17 +327,7 @@ export default function KadminPage() {
                             className="h-8 text-right"
                           />
                         </TableCell>
-                      ))}
-                      <TableCell className="text-right font-medium">
-                        {calculateTotal(project.id, "estimatedHours").toFixed(1)}
-                      </TableCell>
-                    </TableRow>
-
-                    {/* 実績行 */}
-                    <TableRow key={`${project.id}-actual`}>
-                      <TableCell className="text-sm text-muted-foreground">実績</TableCell>
-                      {MONTHS.map((month) => (
-                        <TableCell key={month}>
+                        <TableCell key={`${month}-act`}>
                           <Input
                             type="number"
                             step="0.5"
@@ -248,71 +339,88 @@ export default function KadminPage() {
                             className="h-8 text-right"
                           />
                         </TableCell>
-                      ))}
-                      <TableCell className="text-right font-medium">
-                        {calculateTotal(project.id, "actualHours").toFixed(1)}
-                      </TableCell>
-                    </TableRow>
-
-                    {/* 残業行 */}
-                    <TableRow key={`${project.id}-overtime`}>
-                      <TableCell className="text-sm text-muted-foreground">残業</TableCell>
-                      {MONTHS.map((month) => (
-                        <TableCell key={month}>
-                          <Input
-                            type="number"
-                            step="0.5"
-                            min="0"
-                            value={workHoursData[project.id]?.[month]?.overtimeHours || 0}
-                            onChange={(e) =>
-                              handleCellChange(project.id, month, "overtimeHours", e.target.value)
-                            }
-                            className="h-8 text-right"
-                          />
-                        </TableCell>
-                      ))}
-                      <TableCell className="text-right font-medium">
-                        {calculateTotal(project.id, "overtimeHours").toFixed(1)}
-                      </TableCell>
-                    </TableRow>
-
-                    {/* 標準稼働時間行 */}
-                    <TableRow key={`${project.id}-standard`} className="bg-muted/50">
-                      <TableCell className="text-sm text-muted-foreground">標準時間</TableCell>
-                      {MONTHS.map((month) => {
-                        const workingDays = workHoursData[project.id]?.[month]?.workingDays || DEFAULT_WORKING_DAYS[month] || 20;
-                        const standardHours = calculateStandardHours(workingDays);
-                        return (
-                          <TableCell key={month} className="text-right text-sm">
-                            {standardHours.toFixed(1)}h
-                            <br />
-                            <span className="text-xs text-muted-foreground">({workingDays}日)</span>
-                          </TableCell>
-                        );
-                      })}
-                      <TableCell className="text-right text-sm">
-                        {MONTHS.reduce((sum, month) => {
-                          const workingDays = workHoursData[project.id]?.[month]?.workingDays || DEFAULT_WORKING_DAYS[month] || 20;
-                          return sum + calculateStandardHours(workingDays);
-                        }, 0).toFixed(1)}h
-                      </TableCell>
-                    </TableRow>
-                  </>
+                      </>
+                    ))}
+                    {/* 年間合計列 */}
+                    <TableCell className="text-right font-medium bg-muted">
+                      {calculateYearTotal(project.id, "estimatedHours").toFixed(1)}h
+                    </TableCell>
+                    <TableCell className="text-right font-medium bg-muted">
+                      {calculateYearTotal(project.id, "actualHours").toFixed(1)}h
+                    </TableCell>
+                  </TableRow>
                 ))}
+
+                {/* 休暇行 */}
+                <TableRow className="bg-blue-50 dark:bg-blue-950">
+                  <TableCell className="sticky left-0 bg-blue-50 dark:bg-blue-950 font-medium z-10">
+                    休暇
+                  </TableCell>
+                  {MONTHS.map((month) => (
+                    <>
+                      <TableCell key={`${month}-est`} className="text-center text-sm text-muted-foreground">
+                        -
+                      </TableCell>
+                      <TableCell key={`${month}-act`} className="text-right text-sm">
+                        {vacationData[month]?.hours?.toFixed(1) || "0.0"}h
+                      </TableCell>
+                    </>
+                  ))}
+                  {/* 年間合計 */}
+                  <TableCell className="text-center text-muted-foreground bg-blue-100 dark:bg-blue-900">
+                    -
+                  </TableCell>
+                  <TableCell className="text-right font-medium bg-blue-100 dark:bg-blue-900">
+                    {calculateVacationTotal().toFixed(1)}h
+                  </TableCell>
+                </TableRow>
+
+                {/* 月別合計行（縦方向集計） */}
+                <TableRow className="bg-green-50 dark:bg-green-950 font-bold">
+                  <TableCell className="sticky left-0 bg-green-50 dark:bg-green-950 z-10">
+                    月別合計
+                  </TableCell>
+                  {MONTHS.map((month) => (
+                    <>
+                      <TableCell key={`${month}-est`} className="text-right">
+                        {calculateMonthTotal(month, "estimatedHours").toFixed(1)}h
+                      </TableCell>
+                      <TableCell key={`${month}-act`} className="text-right">
+                        {calculateMonthTotal(month, "actualHours").toFixed(1)}h
+                      </TableCell>
+                    </>
+                  ))}
+                  {/* 総合計 */}
+                  <TableCell className="text-right bg-green-100 dark:bg-green-900">
+                    {calculateGrandTotal("estimatedHours").toFixed(1)}h
+                  </TableCell>
+                  <TableCell className="text-right bg-green-100 dark:bg-green-900">
+                    {calculateGrandTotal("actualHours").toFixed(1)}h
+                  </TableCell>
+                </TableRow>
+
+                {/* 標準時間行（参考情報） */}
+                <TableRow className="bg-muted/50">
+                  <TableCell className="sticky left-0 bg-muted/50 font-medium text-sm z-10">
+                    標準時間
+                  </TableCell>
+                  {MONTHS.map((month) => {
+                    const workingDays = workingDaysData[month] || DEFAULT_WORKING_DAYS[month] || 20;
+                    const standardHours = calculateStandardHours(workingDays);
+                    return (
+                      <TableCell key={`${month}-std`} colSpan={2} className="text-center text-sm">
+                        {standardHours.toFixed(1)}h ({workingDays}日)
+                      </TableCell>
+                    );
+                  })}
+                  {/* 年間合計 */}
+                  <TableCell colSpan={2} className="text-center text-sm bg-muted">
+                    {calculateYearStandardHours().toFixed(1)}h
+                  </TableCell>
+                </TableRow>
               </TableBody>
             </Table>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>休暇管理</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            休暇管理機能は今後実装予定です
-          </p>
         </CardContent>
       </Card>
     </div>
