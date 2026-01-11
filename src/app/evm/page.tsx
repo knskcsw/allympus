@@ -35,7 +35,9 @@ export default function EvmPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [data, setData] = useState<EvmData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"daily" | "cumulative">("daily");
+  const [viewMode, setViewMode] = useState<"daily" | "cumulative">("cumulative");
+  const pvColor = "#3b82f6";
+  const acColor = "#ef4444";
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
@@ -75,20 +77,20 @@ export default function EvmPage() {
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-full border bg-background p-1 shadow-sm">
             <Button
-              variant={viewMode === "daily" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("daily")}
-              className="rounded-full"
-            >
-              日別
-            </Button>
-            <Button
               variant={viewMode === "cumulative" ? "secondary" : "ghost"}
               size="sm"
               onClick={() => setViewMode("cumulative")}
               className="rounded-full"
             >
               積算
+            </Button>
+            <Button
+              variant={viewMode === "daily" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("daily")}
+              className="rounded-full"
+            >
+              日別
             </Button>
           </div>
           <div className="flex items-center gap-2">
@@ -141,23 +143,23 @@ export default function EvmPage() {
                     series={[
                       {
                         label: "PV",
-                        color: "hsl(var(--chart-2))",
+                        color: pvColor,
                         data: pvSeries,
                       },
                       {
                         label: "AC",
-                        color: "hsl(var(--chart-1))",
+                        color: acColor,
                         data: acSeries,
                       },
                     ]}
                   />
                   <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                     <span className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "hsl(var(--chart-2))" }} />
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: pvColor }} />
                       PV
                     </span>
                     <span className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "hsl(var(--chart-1))" }} />
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: acColor }} />
                       AC
                     </span>
                     <span>

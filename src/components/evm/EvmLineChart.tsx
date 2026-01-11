@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 
 type Series = {
@@ -14,173 +14,206 @@ type EvmLineChartProps = {
   series: Series[];
 };
 
-const chartHeight = 60;
-const chartPadding = 6;
-const chartBaseline = chartHeight - chartPadding;
-
 type ChartPoint = {
   x: number;
   y: number;
   value: number;
 };
 
-function buildPointList(data: number[], maxValue: number) {
-  const availableHeight = chartHeight - chartPadding * 2;
-  const count = data.length;
-  if (count === 0) {
-    return [] as ChartPoint[];
-  }
-  return data.map((value, index) => {
-    const x = count === 1 ? 50 : (index / (count - 1)) * 100;
-    const ratio = maxValue === 0 ? 0 : value / maxValue;
-    const y = chartPadding + (1 - ratio) * availableHeight;
-    return { x, y, value };
-  });
-}
+const height = 120;
+const padding = 12;
+
+const toId = (label: string) => `evm-${label.toLowerCase().replace(/\s+/g, "-")}`;
 
 export default function EvmLineChart({ dates, series }: EvmLineChartProps) {
-  const chartRef = useRef<HTMLDivElement | null>(null);
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const plotRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [hoverX, setHoverX] = useState(0);
+  const [plotSize, setPlotSize] = useState({ width: 0, height: 0 });
 
-  const maxValue = Math.max(1, ...series.flatMap((line) => line.data));
-  const lineData = series.map((line) => {
-    const values = buildPointList(line.data, maxValue);
-    const points = values
-      .map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`)
-      .join(" ");
-    const areaPath =
-      values.length > 0
-        ? `M ${values[0].x.toFixed(2)} ${chartBaseline.toFixed(2)} L ${values
-            .map((point) => `${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
-            .join(" ")} L ${values[values.length - 1].x.toFixed(2)} ${chartBaseline.toFixed(2)} Z`
-        : "";
-    return { ...line, values, points, areaPath };
-  });
-
+  const values = series.flatMap((line) => line.data);
+  const maxValue = Math.max(1, ...values);
+  const count = dates.length;
   const firstDate = dates[0];
   const lastDate = dates[dates.length - 1];
-  const hoveredDate = hoveredIndex !== null ? dates[hoveredIndex] : null;
-  const hoverX =
-    hoveredIndex !== null && dates.length > 0
-      ? dates.length === 1
-        ? 50
-        : (hoveredIndex / (dates.length - 1)) * 100
-      : null;
-  const tooltipX = hoverX === null ? 50 : Math.min(95, Math.max(5, hoverX));
 
-  const handleMove = (event: MouseEvent<HTMLDivElement>) => {
-    if (!chartRef.current || dates.length === 0) return;
+  const getPoint = (line: Series, index: number): ChartPoint => {
+    const value = line.data[index] ?? 0;
+    const ratio = maxValue === 0 ? 0 : value / maxValue;
+    const clamped = Math.max(0, Math.min(1, ratio));
+    const y = padding + (1 - clamped) * (height - padding * 2);
+    const x = count === 1 ? 50 : (index / (count - 1)) * 100;
+    return { x, y, value };
+  };
+
+  const lineSeries = series.map((line) => {
+    const points = dates.map((_, index) => getPoint(line, index));
+    const linePoints = points.map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ");
+    const areaPath = points.length
+      ? `M ${points[0].x},${height - padding} L ${linePoints} L ${points[points.length - 1].x},${
+          height - padding
+        } Z`
+      : "";
+    return {
+      ...line,
+      points,
+      linePoints,
+      areaPath,
+      id: toId(line.label),
+    };
+  });
+
+  const handleMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!chartRef.current || count === 0) return;
     const rect = chartRef.current.getBoundingClientRect();
-    const ratio = rect.width === 0 ? 0 : (event.clientX - rect.left) / rect.width;
-    const index = Math.round(ratio * (dates.length - 1));
-    const clamped = Math.min(dates.length - 1, Math.max(0, index));
-    setHoveredIndex(clamped);
+    const x = Math.min(Math.max(event.clientX - rect.left, 0), rect.width);
+    const ratio = rect.width === 0 ? 0 : x / rect.width;
+    const index = Math.round(ratio * (count - 1));
+    setActiveIndex(Math.min(Math.max(index, 0), count - 1));
+    setHoverX(x);
   };
 
   const handleLeave = () => {
-    setHoveredIndex(null);
+    setActiveIndex(null);
   };
 
+  useEffect(() => {
+    const element = plotRef.current;
+    if (!element) return;
+
+    const updateSize = () => {
+      const rect = element.getBoundingClientRect();
+      setPlotSize({ width: rect.width, height: rect.height });
+    };
+
+    updateSize();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(updateSize);
+      observer.observe(element);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
+  }, []);
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div
         ref={chartRef}
-        className="relative rounded-xl border bg-gradient-to-br from-muted/40 via-background to-muted/20 p-4 shadow-sm"
+        className="relative rounded-xl border bg-background p-4"
         onMouseMove={handleMove}
         onMouseLeave={handleLeave}
       >
-        <svg
-          className="w-full h-44"
-          viewBox="0 0 100 60"
-          preserveAspectRatio="none"
-        >
-          <defs>
-            {lineData.map((line) => (
-              <linearGradient
-                key={`${line.label}-fill`}
-                id={`${line.label}-fill`}
-                x1="0"
-                x2="0"
-                y1="0"
-                y2="1"
-              >
-                <stop offset="0%" stopColor={line.color} stopOpacity="0.42" />
-                <stop offset="70%" stopColor={line.color} stopOpacity="0.18" />
-                <stop offset="100%" stopColor={line.color} stopOpacity="0.12" />
-              </linearGradient>
+        <div ref={plotRef} className="relative h-48 w-full">
+          <svg
+            className="absolute inset-0 h-full w-full"
+            viewBox={`0 0 100 ${height}`}
+            preserveAspectRatio="none"
+          >
+            <defs>
+              {lineSeries.map((line) => (
+                <g key={`${line.id}-defs`}>
+                  <linearGradient id={`${line.id}-area`} x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor={line.color} stopOpacity="0.32" />
+                    <stop offset="100%" stopColor={line.color} stopOpacity="0.04" />
+                  </linearGradient>
+                  <linearGradient id={`${line.id}-line`} x1="0" x2="1" y1="0" y2="0">
+                    <stop offset="0%" stopColor={line.color} />
+                    <stop offset="100%" stopColor={line.color} />
+                  </linearGradient>
+                </g>
+              ))}
+            </defs>
+            <rect x="0" y="0" width="100" height={height} fill="transparent" />
+            <line x1="0" y1={height - padding} x2="100" y2={height - padding} stroke="rgba(148,163,184,0.4)" />
+            <line x1="0" y1={height / 2} x2="100" y2={height / 2} stroke="rgba(148,163,184,0.25)" />
+            {lineSeries.map((line) => (
+              <g key={line.id}>
+                {line.areaPath ? <path d={line.areaPath} fill={`url(#${line.id}-area)`} /> : null}
+                {line.linePoints ? (
+                  <polyline
+                    points={line.linePoints}
+                    fill="none"
+                    stroke={`url(#${line.id}-line)`}
+                    strokeWidth="2.6"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ) : null}
+              </g>
             ))}
-          </defs>
-          <line
-            x1="0"
-            y1={chartBaseline}
-            x2="100"
-            y2={chartBaseline}
-            stroke="currentColor"
-            className="text-muted/40"
-          />
-          <line x1="0" y1="30" x2="100" y2="30" stroke="currentColor" className="text-muted/20" />
-          <line x1="0" y1={chartPadding} x2="100" y2={chartPadding} stroke="currentColor" className="text-muted/10" />
-          {lineData.map((line) => (
-            <g key={line.label}>
-              {line.areaPath ? (
-                <path d={line.areaPath} fill={`url(#${line.label}-fill)`} />
-              ) : null}
-              <polyline
-                points={line.points}
-                fill="none"
-                stroke={line.color}
-                strokeWidth="2"
-                strokeLinejoin="round"
-                strokeLinecap="round"
+            {activeIndex !== null ? (
+              <line
+                x1={lineSeries[0]?.points[activeIndex]?.x ?? 0}
+                x2={lineSeries[0]?.points[activeIndex]?.x ?? 0}
+                y1={padding}
+                y2={height - padding}
+                stroke="rgba(148,163,184,0.35)"
+                strokeDasharray="2 4"
               />
-            </g>
-          ))}
-          {hoverX !== null ? (
-            <line
-              x1={hoverX}
-              y1={chartPadding}
-              x2={hoverX}
-              y2={chartBaseline}
-              stroke="currentColor"
-              className="text-muted/40"
-              strokeDasharray="2 2"
-            />
-          ) : null}
-          {hoveredIndex !== null
-            ? lineData.map((line) => {
-                const point = line.values[hoveredIndex];
-                if (!point) return null;
+            ) : null}
+          </svg>
+          <div className="pointer-events-none absolute inset-0">
+            {lineSeries.map((line) =>
+              line.points.map((point, index) => {
+                const left = plotSize.width ? (point.x / 100) * plotSize.width : 0;
+                const top = plotSize.height ? (point.y / height) * plotSize.height : 0;
                 return (
-                  <g key={`${line.label}-point`}>
-                    <circle cx={point.x} cy={point.y} r="3.5" fill="white" />
-                    <circle cx={point.x} cy={point.y} r="2.4" fill={line.color} />
-                  </g>
+                  <div
+                    key={`${line.id}-${index}`}
+                    className={[
+                      "absolute rounded-full ring-1 ring-white/80",
+                      index === activeIndex ? "h-3 w-3" : "h-1.5 w-1.5",
+                    ].join(" ")}
+                    style={{
+                      left,
+                      top,
+                      backgroundColor: line.color,
+                      transform: "translate(-50%, -50%)",
+                    }}
+                  />
                 );
               })
-            : null}
-        </svg>
-        {hoveredDate ? (
-          <div
-            className="pointer-events-none absolute top-3 -translate-x-1/2 rounded-lg border bg-background/95 px-3 py-2 text-xs shadow-md backdrop-blur"
-            style={{ left: `${tooltipX}%` }}
-          >
-            <div className="font-medium">{format(new Date(hoveredDate), "M/d")}</div>
-            <div className="mt-1 space-y-0.5 text-muted-foreground">
-              {lineData.map((line) => {
-                const point = line.values[hoveredIndex ?? 0];
-                return (
-                  <div key={`${line.label}-tooltip`} className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: line.color }} />
-                    <span>{line.label}</span>
-                    <span className="ml-auto font-medium text-foreground">
-                      {point ? point.value.toFixed(1) : "0.0"}h
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            )}
           </div>
-        ) : null}
+        </div>
+        {activeIndex !== null && (() => {
+          const anchor = lineSeries[0]?.points[activeIndex];
+          const tooltipTop = plotSize.height ? ((anchor?.y ?? 0) / height) * plotSize.height : 0;
+          const toRight = hoverX < (plotSize.width || 0) * 0.7;
+          return (
+            <div
+              className="pointer-events-none absolute top-2 z-10 rounded-md border bg-background/95 px-3 py-2 text-xs shadow-md whitespace-nowrap"
+              style={{
+                left: `${hoverX}px`,
+                top: `${tooltipTop}px`,
+                transform: toRight
+                  ? "translate(32px, 28px)"
+                  : "translate(calc(-100% - 32px), 28px)",
+              }}
+            >
+              <div className="text-muted-foreground">
+                {dates[activeIndex] ? format(new Date(dates[activeIndex]), "M/d (EEE)") : "--"}
+              </div>
+              <div className="mt-1 space-y-0.5 text-sm font-semibold text-foreground">
+                {lineSeries.map((line) => {
+                  const point = line.points[activeIndex];
+                  return (
+                    <div key={`${line.id}-tooltip`} className="flex items-center gap-2 text-xs font-normal">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: line.color }} />
+                      <span>{line.label}</span>
+                      <span className="ml-auto font-semibold">{point ? `${point.value.toFixed(1)}h` : "0.0h"}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
       </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>{firstDate ? format(new Date(firstDate), "M/d") : "-"}</span>
