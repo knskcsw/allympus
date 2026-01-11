@@ -23,17 +23,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(256); // Default width
 
   useEffect(() => {
     // Load initial state from localStorage
-    const saved = localStorage.getItem("sidebar-collapsed");
-    if (saved !== null) {
-      setIsSidebarCollapsed(saved === "true");
+    const savedCollapsed = localStorage.getItem("sidebar-collapsed");
+    if (savedCollapsed !== null) {
+      setIsSidebarCollapsed(savedCollapsed === "true");
+    }
+
+    const savedWidth = localStorage.getItem("sidebar-width");
+    if (savedWidth !== null) {
+      setSidebarWidth(parseInt(savedWidth, 10));
     }
 
     // Listen for sidebar toggle events
-    const handleSidebarToggle = (event: CustomEvent<{ isCollapsed: boolean }>) => {
+    const handleSidebarToggle = (event: CustomEvent<{ isCollapsed: boolean; width: number }>) => {
       setIsSidebarCollapsed(event.detail.isCollapsed);
+      setSidebarWidth(event.detail.width);
     };
 
     window.addEventListener("sidebar-toggle", handleSidebarToggle as EventListener);
@@ -53,10 +60,12 @@ export default function RootLayout({
       >
         <Sidebar />
         <Header />
-        <main className={cn(
-          "mt-16 min-h-[calc(100vh-4rem)] p-6 transition-all duration-300",
-          isSidebarCollapsed ? "ml-16" : "ml-64"
-        )}>
+        <main
+          className="mt-16 min-h-[calc(100vh-4rem)] p-6 transition-all duration-300"
+          style={{
+            marginLeft: isSidebarCollapsed ? "64px" : `${sidebarWidth}px`,
+          }}
+        >
           {children}
         </main>
       </body>

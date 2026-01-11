@@ -60,65 +60,44 @@ export default function DailyAttendanceBanner({
 
   return (
     <Card className="bg-muted/30">
-      <CardContent className="py-4">
+      <CardContent className="py-3">
         <div className="flex items-center justify-between">
-          {/* Left: Date Navigation */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handlePrevDay}
-                title="前の日"
-                className="h-8 w-8"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-
-              <div className="px-3 py-1 bg-background rounded-md border min-w-[200px] text-center cursor-pointer hover:bg-accent transition-colors" onClick={handleToday}>
-                <div className="text-lg font-bold">
-                  {format(currentDate, "yyyy年M月d日", { locale: ja })}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {format(currentDate, "EEEE", { locale: ja })}
-                </div>
-              </div>
-
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleNextDay}
-                title="次の日"
-                className="h-8 w-8"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-
-              <Button
-                variant={isToday ? "secondary" : "outline"}
-                onClick={handleToday}
-                size="sm"
-                disabled={isToday}
-              >
-                <Calendar className="h-4 w-4 mr-1" />
-                今日
-              </Button>
-            </div>
+          {/* Left: Date Navigation - Reportsページと同じスタイル */}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={handlePrevDay}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-lg font-medium min-w-[180px] text-center">
+              {format(currentDate, "yyyy年 M月d日", { locale: ja })} (
+              {format(currentDate, "E", { locale: ja })})
+            </span>
+            <Button variant="outline" size="icon" onClick={handleNextDay}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={isToday ? "secondary" : "outline"}
+              onClick={handleToday}
+              size="sm"
+              disabled={isToday}
+            >
+              <Calendar className="h-4 w-4 mr-1" />
+              今日
+            </Button>
           </div>
 
-          {/* Right: Attendance Info */}
-          <div className="flex items-center gap-6 text-sm">
+          {/* Right: Attendance Info - よりコンパクトに */}
+          <div className="flex items-center gap-4 text-sm">
             {attendance ? (
               <>
-                {/* Clock In/Out Times */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   <span className="text-muted-foreground">出勤:</span>
                   <span className="font-medium">
                     {attendance.clockIn
                       ? format(new Date(attendance.clockIn), "HH:mm")
                       : "-"}
                   </span>
-                  <span className="text-muted-foreground mx-2">→</span>
+                </div>
+                <div className="flex items-center gap-1">
                   <span className="text-muted-foreground">退勤:</span>
                   <span className="font-medium">
                     {attendance.clockOut
@@ -126,17 +105,13 @@ export default function DailyAttendanceBanner({
                       : "-"}
                   </span>
                 </div>
-
-                {/* Break Time */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   <span className="text-muted-foreground">休憩:</span>
                   <span className="font-medium">{attendance.breakMinutes}分</span>
                 </div>
-
-                {/* Total Working Hours */}
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">総労働時間:</span>
-                  <span className="font-semibold text-lg">
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground">総労働:</span>
+                  <span className="font-semibold">
                     {workingHours.toFixed(2)}h
                   </span>
                 </div>

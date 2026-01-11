@@ -92,6 +92,12 @@ export default function DailyTimeEntryTable({
     e.preventDefault();
     if (!editingEntry) return;
 
+    // タスクが選択されているかチェック
+    if (!formData.dailyTaskId || formData.dailyTaskId === "none") {
+      alert("タスクを選択してください");
+      return;
+    }
+
     // Convert time strings to full DateTime
     const startDate = new Date(editingEntry.startTime);
     const [startHours, startMinutes] = formData.startTime.split(":").map(Number);
@@ -105,7 +111,7 @@ export default function DailyTimeEntryTable({
     }
 
     onUpdate(editingEntry.id, {
-      dailyTaskId: formData.dailyTaskId || null,
+      dailyTaskId: formData.dailyTaskId,
       projectId: formData.projectId || null,
       wbsId: formData.wbsId || null,
       startTime: startDate.toISOString(),
@@ -216,7 +222,9 @@ export default function DailyTimeEntryTable({
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="dailyTask">タスク</Label>
+              <Label htmlFor="dailyTask">
+                タスク <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={formData.dailyTaskId || "none"}
                 onValueChange={(value) =>
@@ -225,12 +233,15 @@ export default function DailyTimeEntryTable({
                     dailyTaskId: value === "none" ? "" : value,
                   })
                 }
+                required
               >
                 <SelectTrigger id="dailyTask">
-                  <SelectValue placeholder="タスクを選択" />
+                  <SelectValue placeholder="タスクを選択してください" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">タスクなし</SelectItem>
+                  <SelectItem value="none" disabled>
+                    タスクを選択してください
+                  </SelectItem>
                   {dailyTasks.map((task) => (
                     <SelectItem key={task.id} value={task.id}>
                       {task.title}

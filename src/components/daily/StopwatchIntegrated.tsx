@@ -164,7 +164,9 @@ export default function StopwatchIntegrated({
 
         <div className="space-y-3">
           <div>
-            <Label htmlFor="daily-task">タスク（任意）</Label>
+            <Label htmlFor="daily-task">
+              タスク <span className="text-destructive">*</span>
+            </Label>
             <Select
               value={selectedDailyTaskId || "none"}
               onValueChange={(value) =>
@@ -173,10 +175,12 @@ export default function StopwatchIntegrated({
               disabled={isRunning}
             >
               <SelectTrigger id="daily-task">
-                <SelectValue placeholder="タスクを選択" />
+                <SelectValue placeholder="タスクを選択してください" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">タスクなし</SelectItem>
+                <SelectItem value="none" disabled>
+                  タスクを選択してください
+                </SelectItem>
                 {dailyTasks.map((task) => (
                   <SelectItem key={task.id} value={task.id}>
                     {task.title}
@@ -219,7 +223,12 @@ export default function StopwatchIntegrated({
 
         <div className="flex gap-2">
           {!isRunning ? (
-            <Button onClick={handleStart} className="flex-1" size="lg">
+            <Button
+              onClick={handleStart}
+              className="flex-1"
+              size="lg"
+              disabled={!selectedDailyTaskId || selectedDailyTaskId === "none"}
+            >
               <Play className="mr-2 h-5 w-5" />
               開始
             </Button>
