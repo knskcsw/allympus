@@ -45,7 +45,7 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <head>
-        <title>WorkTracker</title>
+        <title>Allympus</title>
         <meta name="description" content="Work management and task tracking application" />
       </head>
       <body

@@ -64,7 +64,7 @@ export function Sidebar() {
           isCollapsed && "justify-center w-full"
         )}>
           <Timer className="h-6 w-6 flex-shrink-0" />
-          {!isCollapsed && <span>WorkTracker</span>}
+          {!isCollapsed && <span>Allympus</span>}
         </Link>
         {!isCollapsed && (
           <Button
