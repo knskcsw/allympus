@@ -32,7 +32,7 @@ async function getDashboardData() {
       prisma.dailyTask.count({
         where: {
           status: {
-            in: ["TODO", "IN_PROGRESS"],
+            in: ["TODO"],
           },
         },
       }),

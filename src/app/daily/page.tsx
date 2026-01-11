@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { format, startOfDay } from "date-fns";
 import DailyAttendanceBanner from "@/components/daily/DailyAttendanceBanner";
 import DailyTaskPanel from "@/components/daily/DailyTaskPanel";
-import StopwatchIntegrated from "@/components/daily/StopwatchIntegrated";
 import DailyTimeEntryTable from "@/components/daily/DailyTimeEntryTable";
 import WbsSummaryCard from "@/components/daily/WbsSummaryCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 export default function DailyPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -32,6 +32,11 @@ export default function DailyPage() {
   const [workMode, setWorkMode] = useState("Office");
   const [sleepHours, setSleepHours] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [routineTitleDraft, setRoutineTitleDraft] = useState("");
+  const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
+  const [editingRoutineTitle, setEditingRoutineTitle] = useState("");
+  const [isRoutineSubmitting, setIsRoutineSubmitting] = useState(false);
+  const [isRoutineOpen, setIsRoutineOpen] = useState(true);
 
   // Fetch daily data
   const fetchDailyData = useCallback(async () => {
@@ -94,6 +99,13 @@ export default function DailyPage() {
       setCheckInTime(format(new Date(), "HH:mm"));
     }
   }, [selectedDate]);
+
+  useEffect(() => {
+    setEditingRoutineId(null);
+    setEditingRoutineTitle("");
+    setRoutineTitleDraft("");
+  }, [selectedDate]);
+
 
   // Task handlers
   const handleTaskCreate = async (taskData: any) => {
@@ -274,10 +286,103 @@ export default function DailyPage() {
     }
   };
 
+  const handleRoutineCreate = async () => {
+    const title = routineTitleDraft.trim();
+    if (!title) return;
+    setIsRoutineSubmitting(true);
+    try {
+      const response = await fetch("/api/morning-routine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          date: selectedDate.toISOString(),
+        }),
+      });
+
+      if (response.ok) {
+        setRoutineTitleDraft("");
+        fetchDailyData();
+      }
+    } catch (error) {
+      console.error("Failed to create routine item:", error);
+    } finally {
+      setIsRoutineSubmitting(false);
+    }
+  };
+
+  const handleRoutineEditStart = (id: string, title: string) => {
+    setEditingRoutineId(id);
+    setEditingRoutineTitle(title);
+  };
+
+  const handleRoutineEditCancel = () => {
+    setEditingRoutineId(null);
+    setEditingRoutineTitle("");
+  };
+
+  const handleRoutineEditSave = async (id: string) => {
+    const title = editingRoutineTitle.trim();
+    if (!title) return;
+    setIsRoutineSubmitting(true);
+    try {
+      const response = await fetch(`/api/morning-routine/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+
+      if (response.ok) {
+        handleRoutineEditCancel();
+        fetchDailyData();
+      }
+    } catch (error) {
+      console.error("Failed to update routine item:", error);
+    } finally {
+      setIsRoutineSubmitting(false);
+    }
+  };
+
+  const handleRoutineDelete = async (id: string) => {
+    if (!confirm("このルーティンを削除してもよろしいですか？")) return;
+    setIsRoutineSubmitting(true);
+    try {
+      const response = await fetch(`/api/morning-routine/${id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        if (editingRoutineId === id) {
+          handleRoutineEditCancel();
+        }
+        fetchDailyData();
+      }
+    } catch (error) {
+      console.error("Failed to delete routine item:", error);
+    } finally {
+      setIsRoutineSubmitting(false);
+    }
+  };
+
+  const today = startOfDay(new Date());
+  const selectedStart = startOfDay(selectedDate);
+  const isFutureDate = selectedStart > today;
+  const hasCheckedIn = Boolean(data?.attendance?.clockIn);
+  const routineItems = data?.morningRoutine || [];
+  const isRoutineComplete =
+    routineItems.length > 0 && routineItems.every((item: any) => item.completed);
+  const showNormalView = hasCheckedIn;
+  const canClockOut =
+    showNormalView && selectedStart.getTime() === today.getTime();
+
+  useEffect(() => {
+    setIsRoutineOpen(!isRoutineComplete);
+  }, [isRoutineComplete]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-lg">読み込み中...</div>
+        <div className="text-sm">読み込み中...</div>
       </div>
     );
   }
@@ -301,24 +406,19 @@ export default function DailyPage() {
   if (!data) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-lg">データが見つかりません</div>
+        <div className="text-sm">データが見つかりません</div>
       </div>
     );
   }
 
-  const today = startOfDay(new Date());
-  const selectedStart = startOfDay(selectedDate);
-  const isFutureDate = selectedStart > today;
-  const hasCheckedIn = Boolean(data.attendance?.clockIn);
-  const routineItems = data.morningRoutine || [];
-  const isRoutineComplete =
-    routineItems.length > 0 && routineItems.every((item: any) => item.completed);
-  const showNormalView = hasCheckedIn;
-  const canClockOut =
-    showNormalView && selectedStart.getTime() === today.getTime();
-
   return (
-    <div className="space-y-4 p-6">
+    <div
+      className={`space-y-4 p-6 min-h-screen text-sm ${
+        isRoutineComplete
+          ? ""
+          : "bg-gradient-to-b from-amber-100 via-amber-50 to-orange-100"
+      }`}
+    >
 
       {/* Top: Attendance Banner with Date Navigation */}
       <DailyAttendanceBanner
@@ -387,51 +487,163 @@ export default function DailyPage() {
         </Card>
       ) : (
         <>
-          {!isRoutineComplete && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Morning Routine</CardTitle>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card
+              className={
+                isRoutineComplete ? "" : "border-amber-200 bg-amber-50/70"
+              }
+            >
+              <CardHeader
+                className={`flex flex-row items-center justify-between ${
+                  isRoutineOpen ? "" : "py-2"
+                }`}
+              >
+                <CardTitle className={isRoutineOpen ? "" : "text-sm"}>
+                  Morning Routine
+                </CardTitle>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setIsRoutineOpen((prev) => !prev)}
+                >
+                  {isRoutineOpen ? (
+                    <span className="flex items-center gap-1">
+                      折りたたむ
+                      <ChevronUp className="h-4 w-4" />
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      開く
+                      <ChevronDown className="h-4 w-4" />
+                    </span>
+                  )}
+                </Button>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {routineItems.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">
-                    ルーティンを準備中です...
+              {isRoutineOpen && (
+                <CardContent className="space-y-4">
+                  {routineItems.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">
+                      ルーティンを追加してください
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {routineItems.map((item: any) => {
+                        const isEditing = editingRoutineId === item.id;
+                        return (
+                          <div
+                            key={item.id}
+                            className="flex items-center gap-3 text-sm"
+                          >
+                            <Checkbox
+                              checked={item.completed}
+                              onCheckedChange={(checked) =>
+                                handleRoutineToggle(item.id, Boolean(checked))
+                              }
+                            />
+                            {isEditing ? (
+                              <Input
+                                value={editingRoutineTitle}
+                                onChange={(e) =>
+                                  setEditingRoutineTitle(e.target.value)
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleRoutineEditSave(item.id);
+                                  }
+                                  if (e.key === "Escape") {
+                                    e.preventDefault();
+                                    handleRoutineEditCancel();
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <span
+                                className={
+                                  item.completed
+                                    ? "text-muted-foreground line-through"
+                                    : ""
+                                }
+                              >
+                                {item.title}
+                              </span>
+                            )}
+                            <div className="ml-auto flex items-center gap-2">
+                              {isEditing ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() =>
+                                      handleRoutineEditSave(item.id)
+                                    }
+                                    disabled={isRoutineSubmitting}
+                                  >
+                                    保存
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={handleRoutineEditCancel}
+                                    disabled={isRoutineSubmitting}
+                                  >
+                                    キャンセル
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() =>
+                                      handleRoutineEditStart(item.id, item.title)
+                                    }
+                                    disabled={isRoutineSubmitting}
+                                  >
+                                    編集
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleRoutineDelete(item.id)}
+                                    disabled={isRoutineSubmitting}
+                                  >
+                                    削除
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      value={routineTitleDraft}
+                      onChange={(e) => setRoutineTitleDraft(e.target.value)}
+                      placeholder="新しいルーティンを追加"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleRoutineCreate();
+                        }
+                      }}
+                    />
+                    <Button
+                      onClick={handleRoutineCreate}
+                      disabled={isRoutineSubmitting}
+                    >
+                      追加
+                    </Button>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {routineItems.map((item: any) => (
-                      <label
-                        key={item.id}
-                        className="flex items-center gap-3 text-sm"
-                      >
-                        <Checkbox
-                          checked={item.completed}
-                          onCheckedChange={(checked) =>
-                            handleRoutineToggle(item.id, Boolean(checked))
-                          }
-                        />
-                        <span
-                          className={
-                            item.completed
-                              ? "text-muted-foreground line-through"
-                              : ""
-                          }
-                        >
-                          {item.title}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-                <div className="text-sm text-muted-foreground">
-                  Dailyはこのまま使えます
-                </div>
-              </CardContent>
+                </CardContent>
+              )}
             </Card>
-          )}
-          <div className="grid grid-cols-12 gap-4">
-            {/* Left: Tasks (col-span-3) */}
-            <div className="col-span-3">
+            <WbsSummaryCard summary={data.wbsSummary || []} />
+          </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {/* Left: Tasks */}
+            <div>
               <DailyTaskPanel
                 date={selectedDate}
                 tasks={data.dailyTasks || []}
@@ -442,12 +654,8 @@ export default function DailyPage() {
               />
             </div>
 
-            {/* Middle: Time Tracking & Entries (col-span-6) */}
-            <div className="col-span-6 space-y-4">
-              <StopwatchIntegrated
-                dailyTasks={data.dailyTasks || []}
-                onEntryChange={fetchDailyData}
-              />
+            {/* Right: Time Entries */}
+            <div className="space-y-4">
               <DailyTimeEntryTable
                 entries={data.timeEntries || []}
                 dailyTasks={data.dailyTasks || []}
@@ -455,11 +663,6 @@ export default function DailyPage() {
                 onUpdate={handleTimeEntryUpdate}
                 onDelete={handleTimeEntryDelete}
               />
-            </div>
-
-            {/* Right: Summary (col-span-3) */}
-            <div className="col-span-3">
-              <WbsSummaryCard summary={data.wbsSummary || []} />
             </div>
           </div>
         </>

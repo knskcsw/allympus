@@ -1,9 +1,10 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, Clock } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
 
 interface DailyTask {
   id: string;
@@ -21,11 +22,15 @@ interface DailyTaskItemProps {
   onEdit: (task: DailyTask) => void;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: string) => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  disableMoveUp?: boolean;
+  disableMoveDown?: boolean;
+  showMoveControls?: boolean;
 }
 
 const statusColors: Record<string, string> = {
-  TODO: "bg-gray-500",
-  IN_PROGRESS: "bg-blue-500",
+  TODO: "bg-gray-400",
   DONE: "bg-green-500",
 };
 
@@ -36,96 +41,91 @@ const priorityColors: Record<string, string> = {
   URGENT: "bg-red-500",
 };
 
-function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-  return `${minutes}m`;
-}
-
 export function DailyTaskItem({
   task,
   onEdit,
   onDelete,
   onStatusChange,
+  onMoveUp,
+  onMoveDown,
+  disableMoveUp = false,
+  disableMoveDown = false,
+  showMoveControls = false,
 }: DailyTaskItemProps) {
-  const nextStatus: Record<string, string> = {
-    TODO: "IN_PROGRESS",
-    IN_PROGRESS: "DONE",
-  };
-
-  const nextStatusLabel: Record<string, string> = {
-    TODO: "開始",
-    IN_PROGRESS: "完了",
-  };
+  const isDone = task.status === "DONE";
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <CardTitle className="text-base">{task.title}</CardTitle>
-          <div className="flex gap-1">
+    <Card className="border-muted/60">
+      <CardContent className="flex items-center gap-2 px-2 py-2">
+        <Checkbox
+          checked={isDone}
+          onCheckedChange={(checked) =>
+            onStatusChange(task.id, checked ? "DONE" : "TODO")
+          }
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span
+              className={`truncate ${
+                isDone ? "text-muted-foreground line-through" : ""
+              }`}
+            >
+              {task.title}
+            </span>
+            <Badge
+              className={`text-[10px] px-1.5 py-0.5 ${priorityColors[task.priority]}`}
+            >
+              {task.priority}
+            </Badge>
+            <Badge
+              className={`text-[10px] px-1.5 py-0.5 ${
+                statusColors[isDone ? "DONE" : "TODO"]
+              }`}
+            >
+              {isDone ? "DONE" : "TODO"}
+            </Badge>
+          </div>
+        </div>
+        {showMoveControls && (
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
-              onClick={() => onEdit(task)}
+              className="h-6 w-6"
+              onClick={onMoveUp}
+              disabled={disableMoveUp}
             >
-              <Pencil className="h-4 w-4" />
+              <ChevronUp className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-destructive"
-              onClick={() => onDelete(task.id)}
+              className="h-6 w-6"
+              onClick={onMoveDown}
+              disabled={disableMoveDown}
             >
-              <Trash2 className="h-4 w-4" />
+              <ChevronDown className="h-4 w-4" />
             </Button>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {task.description && (
-          <p className="text-sm text-muted-foreground line-clamp-2">
-            {task.description}
-          </p>
         )}
-
-        <div className="flex flex-wrap gap-2">
-          <Badge className={statusColors[task.status]}>{task.status}</Badge>
-          <Badge className={priorityColors[task.priority]}>
-            {task.priority}
-          </Badge>
-        </div>
-
-        {/* Time tracking info */}
-        {(task.totalTimeSpent !== undefined || task.estimatedMinutes) && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Clock className="h-3 w-3" />
-            {task.totalTimeSpent !== undefined && (
-              <span className="font-semibold text-foreground">
-                {formatDuration(task.totalTimeSpent)}
-              </span>
-            )}
-            {task.estimatedMinutes && (
-              <span>/ {task.estimatedMinutes}m est.</span>
-            )}
-          </div>
-        )}
-
-        {/* Status change button */}
-        {nextStatus[task.status] && (
+        <div className="flex items-center gap-1">
           <Button
-            size="sm"
-            variant="outline"
-            className="w-full"
-            onClick={() => onStatusChange(task.id, nextStatus[task.status])}
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={() => onEdit(task)}
           >
-            {nextStatusLabel[task.status]}
+            <Pencil className="h-3.5 w-3.5" />
           </Button>
-        )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-destructive"
+            onClick={() => onDelete(task.id)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

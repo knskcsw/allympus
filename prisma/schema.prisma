@@ -72,6 +72,7 @@ model DailyTask {
   status           String      @default("TODO")
   priority         String      @default("MEDIUM")
   estimatedMinutes Int?
+  sortOrder        Int         @default(0)
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 

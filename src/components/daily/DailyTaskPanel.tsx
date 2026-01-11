@@ -30,6 +30,8 @@ interface DailyTask {
   status: string;
   priority: string;
   estimatedMinutes: number | null;
+  sortOrder: number;
+  createdAt?: string;
   totalTimeSpent?: number;
 }
 
@@ -52,22 +54,19 @@ export default function DailyTaskPanel({
 }: DailyTaskPanelProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<DailyTask | null>(null);
+  const [sortMode, setSortMode] = useState("manual");
 
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    status: "TODO",
     priority: "MEDIUM",
-    estimatedMinutes: "",
   });
 
   const resetForm = () => {
     setFormData({
       title: "",
       description: "",
-      status: "TODO",
       priority: "MEDIUM",
-      estimatedMinutes: "",
     });
     setEditingTask(null);
   };
@@ -77,9 +76,7 @@ export default function DailyTaskPanel({
     setFormData({
       title: task.title,
       description: task.description || "",
-      status: task.status,
       priority: task.priority,
-      estimatedMinutes: task.estimatedMinutes?.toString() || "",
     });
     setIsFormOpen(true);
   };
@@ -90,27 +87,77 @@ export default function DailyTaskPanel({
     const data = {
       title: formData.title,
       description: formData.description || null,
-      status: formData.status,
       priority: formData.priority,
-      estimatedMinutes: formData.estimatedMinutes
-        ? parseInt(formData.estimatedMinutes)
-        : null,
     };
 
     if (editingTask) {
       onTaskUpdate(editingTask.id, data);
     } else {
-      onTaskCreate(data);
+      onTaskCreate({ ...data, status: "TODO" });
     }
 
     setIsFormOpen(false);
     resetForm();
   };
 
-  // Group tasks by status
-  const todoTasks = tasks.filter((t) => t.status === "TODO");
-  const inProgressTasks = tasks.filter((t) => t.status === "IN_PROGRESS");
-  const doneTasks = tasks.filter((t) => t.status === "DONE");
+  const statusRank = (status: string) => (status === "DONE" ? 1 : 0);
+  const priorityRank: Record<string, number> = {
+    URGENT: 0,
+    HIGH: 1,
+    MEDIUM: 2,
+    LOW: 3,
+  };
+
+  const sortedTasks = [...tasks].sort((a, b) => {
+    if (sortMode === "status") {
+      const statusDiff = statusRank(a.status) - statusRank(b.status);
+      if (statusDiff !== 0) return statusDiff;
+    }
+
+    if (sortMode === "priority") {
+      const priorityDiff =
+        (priorityRank[a.priority] ?? 99) - (priorityRank[b.priority] ?? 99);
+      if (priorityDiff !== 0) return priorityDiff;
+    }
+
+    const orderDiff = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    if (orderDiff !== 0) return orderDiff;
+
+    const aCreated = a.createdAt ? Date.parse(a.createdAt) : 0;
+    const bCreated = b.createdAt ? Date.parse(b.createdAt) : 0;
+    return aCreated - bCreated;
+  });
+
+  const handleMoveTask = (taskId: string, direction: "up" | "down") => {
+    if (sortMode !== "manual") return;
+    const sortOrders = sortedTasks.map((task) => task.sortOrder);
+    const hasUniqueOrder = new Set(sortOrders).size === sortOrders.length;
+    const orderedTasks = sortedTasks.map((task, index) => ({
+      ...task,
+      sortOrder: hasUniqueOrder ? task.sortOrder : index,
+    }));
+
+    const currentIndex = orderedTasks.findIndex((task) => task.id === taskId);
+    if (currentIndex < 0) return;
+    const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (nextIndex < 0 || nextIndex >= orderedTasks.length) return;
+
+    const currentTask = orderedTasks[currentIndex];
+    const nextTask = orderedTasks[nextIndex];
+    const nextOrder = nextTask.sortOrder ?? nextIndex;
+    const currentOrder = currentTask.sortOrder ?? currentIndex;
+
+    const desiredOrders = orderedTasks.map((task) => task.sortOrder ?? 0);
+    desiredOrders[currentIndex] = nextOrder;
+    desiredOrders[nextIndex] = currentOrder;
+
+    orderedTasks.forEach((task, index) => {
+      const desiredOrder = desiredOrders[index];
+      if (!hasUniqueOrder || task.sortOrder !== desiredOrder) {
+        onTaskUpdate(task.id, { sortOrder: desiredOrder });
+      }
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -118,68 +165,45 @@ export default function DailyTaskPanel({
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>タスク</CardTitle>
-            <Button
-              size="sm"
-              onClick={() => {
-                resetForm();
-                setIsFormOpen(true);
-              }}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              追加
-            </Button>
+            <div className="flex items-center gap-2">
+              <Select value={sortMode} onValueChange={setSortMode}>
+                <SelectTrigger className="h-8 w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manual">手動</SelectItem>
+                  <SelectItem value="status">ステータス順</SelectItem>
+                  <SelectItem value="priority">優先度順</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                onClick={() => {
+                  resetForm();
+                  setIsFormOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                追加
+              </Button>
+            </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* TODO Section */}
-          {todoTasks.length > 0 && (
+        <CardContent className="space-y-2">
+          {sortedTasks.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-muted-foreground">
-                TODO ({todoTasks.length})
-              </h3>
-              {todoTasks.map((task) => (
+              {sortedTasks.map((task, index) => (
                 <DailyTaskItem
                   key={task.id}
                   task={task}
                   onEdit={handleEdit}
                   onDelete={onTaskDelete}
                   onStatusChange={onTaskStatusChange}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* IN_PROGRESS Section */}
-          {inProgressTasks.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-muted-foreground">
-                進行中 ({inProgressTasks.length})
-              </h3>
-              {inProgressTasks.map((task) => (
-                <DailyTaskItem
-                  key={task.id}
-                  task={task}
-                  onEdit={handleEdit}
-                  onDelete={onTaskDelete}
-                  onStatusChange={onTaskStatusChange}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* DONE Section */}
-          {doneTasks.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-muted-foreground">
-                完了 ({doneTasks.length})
-              </h3>
-              {doneTasks.map((task) => (
-                <DailyTaskItem
-                  key={task.id}
-                  task={task}
-                  onEdit={handleEdit}
-                  onDelete={onTaskDelete}
-                  onStatusChange={onTaskStatusChange}
+                  onMoveUp={() => handleMoveTask(task.id, "up")}
+                  onMoveDown={() => handleMoveTask(task.id, "down")}
+                  disableMoveUp={index === 0}
+                  disableMoveDown={index === sortedTasks.length - 1}
+                  showMoveControls={sortMode === "manual"}
                 />
               ))}
             </div>
@@ -226,57 +250,24 @@ export default function DailyTaskPanel({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="status">ステータス</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, status: value })
-                  }
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="TODO">TODO</SelectItem>
-                    <SelectItem value="IN_PROGRESS">進行中</SelectItem>
-                    <SelectItem value="DONE">完了</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="priority">優先度</Label>
-                <Select
-                  value={formData.priority}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, priority: value })
-                  }
-                >
-                  <SelectTrigger id="priority">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LOW">低</SelectItem>
-                    <SelectItem value="MEDIUM">中</SelectItem>
-                    <SelectItem value="HIGH">高</SelectItem>
-                    <SelectItem value="URGENT">緊急</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
             <div>
-              <Label htmlFor="estimatedMinutes">見積もり時間（分）</Label>
-              <Input
-                id="estimatedMinutes"
-                type="number"
-                value={formData.estimatedMinutes}
-                onChange={(e) =>
-                  setFormData({ ...formData, estimatedMinutes: e.target.value })
+              <Label htmlFor="priority">優先度</Label>
+              <Select
+                value={formData.priority}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, priority: value })
                 }
-              />
+              >
+                <SelectTrigger id="priority">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOW">低</SelectItem>
+                  <SelectItem value="MEDIUM">中</SelectItem>
+                  <SelectItem value="HIGH">高</SelectItem>
+                  <SelectItem value="URGENT">緊急</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex justify-end gap-2">

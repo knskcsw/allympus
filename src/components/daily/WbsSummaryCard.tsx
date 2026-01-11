@@ -42,7 +42,7 @@ export default function WbsSummaryCard({ summary }: WbsSummaryCardProps) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>WBS集計</CardTitle>
-          <Badge variant="outline" className="text-lg font-semibold">
+          <Badge variant="outline" className="text-base font-semibold">
             合計: {totalHours.toFixed(2)}h
           </Badge>
         </div>
