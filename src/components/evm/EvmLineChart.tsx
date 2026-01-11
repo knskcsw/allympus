@@ -12,6 +12,8 @@ type Series = {
 type EvmLineChartProps = {
   dates: string[];
   series: Series[];
+  maxValue?: number;
+  valueFormatter?: (value: number) => string;
 };
 
 type ChartPoint = {
@@ -25,7 +27,12 @@ const padding = 12;
 
 const toId = (label: string) => `evm-${label.toLowerCase().replace(/\s+/g, "-")}`;
 
-export default function EvmLineChart({ dates, series }: EvmLineChartProps) {
+export default function EvmLineChart({
+  dates,
+  series,
+  maxValue: maxValueOverride,
+  valueFormatter,
+}: EvmLineChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const plotRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -33,7 +40,10 @@ export default function EvmLineChart({ dates, series }: EvmLineChartProps) {
   const [plotSize, setPlotSize] = useState({ width: 0, height: 0 });
 
   const values = series.flatMap((line) => line.data);
-  const maxValue = Math.max(1, ...values);
+  const maxValue = Math.max(
+    1,
+    maxValueOverride !== undefined ? maxValueOverride : Math.max(0, ...values)
+  );
   const count = dates.length;
   const firstDate = dates[0];
   const lastDate = dates[dates.length - 1];
@@ -63,6 +73,9 @@ export default function EvmLineChart({ dates, series }: EvmLineChartProps) {
       id: toId(line.label),
     };
   });
+
+  const formatValue =
+    valueFormatter || ((value: number) => `${value.toFixed(1)}h`);
 
   const handleMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!chartRef.current || count === 0) return;
@@ -206,7 +219,9 @@ export default function EvmLineChart({ dates, series }: EvmLineChartProps) {
                     <div key={`${line.id}-tooltip`} className="flex items-center gap-2 text-xs font-normal">
                       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: line.color }} />
                       <span>{line.label}</span>
-                      <span className="ml-auto font-semibold">{point ? `${point.value.toFixed(1)}h` : "0.0h"}</span>
+                      <span className="ml-auto font-semibold">
+                        {point ? formatValue(point.value) : formatValue(0)}
+                      </span>
                     </div>
                   );
                 })}

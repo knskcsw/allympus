@@ -7,6 +7,12 @@ datasource db {
   provider = "sqlite"
 }
 
+enum WorkType {
+  IN_PROGRESS
+  SE_TRANSFER
+  INDIRECT
+}
+
 model Attendance {
   id           String    @id @default(cuid())
   date         DateTime
@@ -41,6 +47,7 @@ model Project {
   code         String   @unique
   name         String
   abbreviation String?
+  workType     WorkType @default(IN_PROGRESS)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

@@ -6,6 +6,7 @@ import { ProjectList } from "@/components/projects/ProjectList";
 import { ProjectForm } from "@/components/projects/ProjectForm";
 import { Plus, FolderKanban } from "lucide-react";
 import type { Project, Wbs } from "@/generated/prisma/client";
+import type { WorkType } from "@/lib/workTypes";
 
 type ProjectWithWbs = Project & { wbsList: Wbs[] };
 
@@ -29,6 +30,7 @@ export default function ProjectsPage() {
     code: string;
     name: string;
     abbreviation?: string;
+    workType: WorkType;
     wbsList: { name: string }[];
   }) => {
     await fetch("/api/projects", {
@@ -75,12 +77,13 @@ export default function ProjectsPage() {
     projectId: string,
     code: string,
     name: string,
-    abbreviation?: string
+    abbreviation: string | undefined,
+    workType: WorkType
   ) => {
     await fetch(`/api/projects/${projectId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, name, abbreviation }),
+      body: JSON.stringify({ code, name, abbreviation, workType }),
     });
     fetchProjects();
   };
