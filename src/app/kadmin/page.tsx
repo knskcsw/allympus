@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Save } from "lucide-react";
+import { Save, Calculator } from "lucide-react";
 
 interface Project {
   id: string;
@@ -52,6 +52,7 @@ export default function KadminPage() {
   const [workingDaysData, setWorkingDaysData] = useState<{ [month: number]: number }>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [calculating, setCalculating] = useState(false);
 
   useEffect(() => {
     fetchAllData();
@@ -118,20 +119,31 @@ export default function KadminPage() {
 
   const fetchVacations = async () => {
     try {
-      const res = await fetch(`/api/kadmin/vacations?fiscalYear=${FISCAL_YEAR}`);
-      const vacations = await res.json();
+      const res = await fetch(`/api/kadmin/monthly-vacation?fiscalYear=${FISCAL_YEAR}`);
+      const monthlyVacations = await res.json();
 
-      // Aggregate by month
+      // Convert to month-keyed object
       const aggregated: VacationData = {};
-      for (const vacation of vacations) {
-        const date = new Date(vacation.date);
-        const month = date.getMonth() + 1; // 1-12
-        if (!aggregated[month]) aggregated[month] = { hours: 0 };
-        aggregated[month].hours += vacation.hours;
+      for (const vacation of monthlyVacations) {
+        aggregated[vacation.month] = { hours: vacation.hours };
       }
+
+      // Initialize empty months
+      for (const month of MONTHS) {
+        if (!aggregated[month]) {
+          aggregated[month] = { hours: 0 };
+        }
+      }
+
       setVacationData(aggregated);
     } catch (error) {
       console.error("Failed to fetch vacations:", error);
+      // Initialize empty data on error
+      const empty: VacationData = {};
+      for (const month of MONTHS) {
+        empty[month] = { hours: 0 };
+      }
+      setVacationData(empty);
     }
   };
 
@@ -164,6 +176,68 @@ export default function KadminPage() {
         },
       },
     }));
+  };
+
+  const handleVacationChange = (month: number, value: string) => {
+    const numValue = parseFloat(value) || 0;
+    setVacationData((prev) => ({
+      ...prev,
+      [month]: {
+        hours: numValue,
+      },
+    }));
+  };
+
+  const handleTablePaste = (e: React.ClipboardEvent) => {
+    const pasteData = e.clipboardData.getData("text");
+    if (!pasteData) return;
+
+    // Parse TSV data (tab-separated values from Excel)
+    const rows = pasteData.split("\n").filter((row) => row.trim());
+    if (rows.length === 0) return;
+
+    e.preventDefault();
+
+    // Try to parse and apply data
+    // Expected format: each row has project name and then 12 pairs of values (est, actual)
+    // or just 12 values for actual hours
+    const updates = { ...workHoursData };
+
+    for (let i = 0; i < rows.length && i < projects.length; i++) {
+      const cells = rows[i].split("\t");
+      const project = projects[i];
+
+      // Skip project name cell (first cell)
+      let cellIndex = 1;
+
+      for (let monthIdx = 0; monthIdx < MONTHS.length; monthIdx++) {
+        const month = MONTHS[monthIdx];
+
+        if (!updates[project.id]) {
+          updates[project.id] = {};
+        }
+        if (!updates[project.id][month]) {
+          updates[project.id][month] = {
+            estimatedHours: 0,
+            actualHours: 0,
+            overtimeHours: 0,
+            workingDays: DEFAULT_WORKING_DAYS[month] || 20,
+          };
+        }
+
+        // Try to read estimated and actual hours
+        const estValue = parseFloat(cells[cellIndex]?.trim() || "0") || 0;
+        const actValue = parseFloat(cells[cellIndex + 1]?.trim() || "0") || 0;
+
+        updates[project.id][month].estimatedHours = estValue;
+        updates[project.id][month].actualHours = actValue;
+
+        cellIndex += 2;
+      }
+    }
+
+    setWorkHoursData(updates);
+    alert("データを貼り付けました");
   };
 
   const calculateStandardHours = (workingDays: number) => {
@@ -216,9 +290,71 @@ export default function KadminPage() {
     return total;
   };
 
+  // 残業時間計算: 月別合計(実績) - (標準時間 - 休暇)
+  const calculateOvertimeHours = (month: number) => {
+    const actualTotal = calculateMonthTotal(month, "actualHours");
+    const workingDays = workingDaysData[month] || DEFAULT_WORKING_DAYS[month] || 20;
+    const standardHours = calculateStandardHours(workingDays);
+    const vacationHours = vacationData[month]?.hours || 0;
+    const expectedHours = standardHours - vacationHours;
+    return actualTotal - expectedHours;
+  };
+
+  // 年間残業時間合計
+  const calculateYearOvertimeHours = () => {
+    let total = 0;
+    for (const month of MONTHS) {
+      total += calculateOvertimeHours(month);
+    }
+    return total;
+  };
+
+  const handleCalculateActual = async () => {
+    if (!confirm("タスクの実績時間で「実績」列を上書きしますか？")) {
+      return;
+    }
+
+    setCalculating(true);
+    try {
+      const res = await fetch(`/api/kadmin/actual-hours?fiscalYear=${FISCAL_YEAR}`);
+      const actualHours = await res.json();
+
+      // Update workHoursData with actual hours
+      setWorkHoursData((prev) => {
+        const updated = { ...prev };
+
+        // Reset all actual hours to 0
+        for (const projectId in updated) {
+          for (const month of MONTHS) {
+            if (updated[projectId][month]) {
+              updated[projectId][month].actualHours = 0;
+            }
+          }
+        }
+
+        // Apply calculated actual hours
+        for (const item of actualHours) {
+          if (updated[item.projectId] && updated[item.projectId][item.month]) {
+            updated[item.projectId][item.month].actualHours = item.hours;
+          }
+        }
+
+        return updated;
+      });
+
+      alert("実績時間を計算しました");
+    } catch (error) {
+      console.error("Failed to calculate actual hours:", error);
+      alert("実績時間の計算に失敗しました");
+    } finally {
+      setCalculating(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Save work hours
       const updates = [];
       for (const projectId in workHoursData) {
         for (const month of MONTHS) {
@@ -235,11 +371,28 @@ export default function KadminPage() {
         }
       }
 
-      await fetch("/api/kadmin/work-hours", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ updates }),
-      });
+      // Save vacation hours
+      const vacationUpdates = [];
+      for (const month of MONTHS) {
+        vacationUpdates.push({
+          fiscalYear: FISCAL_YEAR,
+          month,
+          hours: vacationData[month]?.hours || 0,
+        });
+      }
+
+      await Promise.all([
+        fetch("/api/kadmin/work-hours", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ updates }),
+        }),
+        fetch("/api/kadmin/monthly-vacation", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ updates: vacationUpdates }),
+        }),
+      ]);
 
       alert("保存しました");
     } catch (error) {
@@ -259,14 +412,21 @@ export default function KadminPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Kadmin</h1>
-          <p className="text-muted-foreground mt-2">
-            プロジェクト別月次稼働時間管理 ({FISCAL_YEAR})
-          </p>
         </div>
-        <Button onClick={handleSave} disabled={saving}>
-          <Save className="mr-2 h-4 w-4" />
-          {saving ? "保存中..." : "保存"}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleCalculateActual}
+            disabled={calculating || saving}
+          >
+            <Calculator className="mr-2 h-4 w-4" />
+            {calculating ? "計算中..." : "実績を計算"}
+          </Button>
+          <Button onClick={handleSave} disabled={saving || calculating}>
+            <Save className="mr-2 h-4 w-4" />
+            {saving ? "保存中..." : "保存"}
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -274,7 +434,7 @@ export default function KadminPage() {
           <CardTitle>稼働時間一覧</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" onPaste={handleTablePaste}>
             <Table>
               <TableHeader>
                 {/* ヘッダー第1行: 月名 */}
@@ -361,8 +521,15 @@ export default function KadminPage() {
                       <TableCell key={`${month}-est`} className="text-center text-sm text-muted-foreground">
                         -
                       </TableCell>
-                      <TableCell key={`${month}-act`} className="text-right text-sm">
-                        {vacationData[month]?.hours?.toFixed(1) || "0.0"}h
+                      <TableCell key={`${month}-act`} className="bg-blue-50 dark:bg-blue-950">
+                        <Input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          value={vacationData[month]?.hours || 0}
+                          onChange={(e) => handleVacationChange(month, e.target.value)}
+                          className="h-8 text-right"
+                        />
                       </TableCell>
                     </>
                   ))}
@@ -396,6 +563,36 @@ export default function KadminPage() {
                   </TableCell>
                   <TableCell className="text-right bg-green-100 dark:bg-green-900">
                     {calculateGrandTotal("actualHours").toFixed(1)}h
+                  </TableCell>
+                </TableRow>
+
+                {/* 残業時間行 */}
+                <TableRow className="bg-orange-50 dark:bg-orange-950 font-bold">
+                  <TableCell className="sticky left-0 bg-orange-50 dark:bg-orange-950 z-10">
+                    残業時間
+                  </TableCell>
+                  {MONTHS.map((month) => {
+                    const overtime = calculateOvertimeHours(month);
+                    return (
+                      <TableCell
+                        key={`${month}-overtime`}
+                        colSpan={2}
+                        className={`text-center ${
+                          overtime > 0
+                            ? "text-orange-600 dark:text-orange-400"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {overtime.toFixed(1)}h
+                      </TableCell>
+                    );
+                  })}
+                  {/* 年間残業時間合計 */}
+                  <TableCell
+                    colSpan={2}
+                    className="text-center bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400"
+                  >
+                    {calculateYearOvertimeHours().toFixed(1)}h
                   </TableCell>
                 </TableRow>
 
