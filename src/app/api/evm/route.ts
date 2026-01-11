@@ -4,6 +4,7 @@ import {
   eachDayOfInterval,
   endOfMonth,
   format,
+  isWeekend,
   startOfMonth,
 } from "date-fns";
 
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     format(day, "yyyy-MM-dd")
   );
 
-  const [projects, timeEntries, dailyTasks, holidays, workHours] =
+  const [projects, timeEntries, fixedTasks, holidays, workHours] =
     await Promise.all([
     prisma.project.findMany({
       orderBy: [{ name: "asc" }],
@@ -62,24 +63,11 @@ export async function GET(request: NextRequest) {
         startTime: "asc",
       },
     }),
-    prisma.dailyTask.findMany({
+    prisma.evmFixedTask.findMany({
       where: {
         date: {
           gte: startDate,
           lte: endDate,
-        },
-      },
-      include: {
-        timeEntries: {
-          where: {
-            projectId: { not: null },
-          },
-          select: {
-            projectId: true,
-          },
-          orderBy: {
-            startTime: "asc",
-          },
         },
       },
       orderBy: {
@@ -105,7 +93,12 @@ export async function GET(request: NextRequest) {
   const holidaySet = new Set(
     holidays.map((holiday) => format(holiday.date, "yyyy-MM-dd"))
   );
-  const workingDayCount = Math.max(days.length - holidaySet.size, 0);
+  const workingDays = days.filter((day) => {
+    const date = new Date(day);
+    return !isWeekend(date) && !holidaySet.has(day);
+  });
+  const workingDaySet = new Set(workingDays);
+  const workingDayCount = Math.max(workingDays.length, 0);
 
   const workHoursByProject = workHours.reduce<Record<string, number>>(
     (acc, item) => {
@@ -123,14 +116,10 @@ export async function GET(request: NextRequest) {
     actualByProject[project.id] = buildEmptySeries(days);
   }
 
-  for (const task of dailyTasks) {
-    if (!task.estimatedMinutes) continue;
-    const taskProjectId = task.timeEntries.find(
-      (entry) => entry.projectId
-    )?.projectId;
-    if (!taskProjectId || !fixedTaskByProject[taskProjectId]) continue;
+  for (const task of fixedTasks) {
+    if (!fixedTaskByProject[task.projectId]) continue;
     const taskDay = format(task.date, "yyyy-MM-dd");
-    fixedTaskByProject[taskProjectId][taskDay] += task.estimatedMinutes / 60;
+    fixedTaskByProject[task.projectId][taskDay] += task.estimatedMinutes / 60;
   }
 
   for (const entry of timeEntries) {
@@ -153,7 +142,7 @@ export async function GET(request: NextRequest) {
       workingDayCount > 0 ? remaining / workingDayCount : 0;
     const pvSeries = days.map((day, index) => {
       const base = fixedSeries[index];
-      if (holidaySet.has(day)) {
+      if (!workingDaySet.has(day)) {
         return base;
       }
       return base + dailyAllocation;

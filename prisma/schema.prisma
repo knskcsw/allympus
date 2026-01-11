@@ -47,6 +47,7 @@ model Project {
   wbsList          Wbs[]
   timeEntries      TimeEntry[]
   projectWorkHours ProjectWorkHours[]
+  evmFixedTasks    EvmFixedTask[]
 
   @@map("projects")
 }
@@ -81,6 +82,21 @@ model DailyTask {
   @@index([date])
   @@index([status])
   @@map("daily_tasks")
+}
+
+model EvmFixedTask {
+  id               String   @id @default(cuid())
+  date             DateTime
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title            String
+  estimatedMinutes Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([date])
+  @@index([projectId])
+  @@map("evm_fixed_tasks")
 }
 
 model TimeEntry {
