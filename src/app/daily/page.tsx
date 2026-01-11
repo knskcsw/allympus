@@ -7,7 +7,6 @@ import DailyTaskPanel from "@/components/daily/DailyTaskPanel";
 import StopwatchIntegrated from "@/components/daily/StopwatchIntegrated";
 import DailyTimeEntryTable from "@/components/daily/DailyTimeEntryTable";
 import WbsSummaryCard from "@/components/daily/WbsSummaryCard";
-import DailyCalendarNavigator from "@/components/daily/DailyCalendarNavigator";
 
 export default function DailyPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -203,8 +202,12 @@ export default function DailyPage() {
     <div className="space-y-4 p-6">
       <h1 className="text-3xl font-bold">Daily</h1>
 
-      {/* Top: Attendance Banner */}
-      <DailyAttendanceBanner attendance={data.attendance} />
+      {/* Top: Attendance Banner with Date Navigation */}
+      <DailyAttendanceBanner
+        attendance={data.attendance}
+        currentDate={selectedDate}
+        onDateChange={handleDateChange}
+      />
 
       {/* Main Grid */}
       <div className="grid grid-cols-12 gap-4">
@@ -220,8 +223,8 @@ export default function DailyPage() {
           />
         </div>
 
-        {/* Middle: Time Tracking & Entries (col-span-5) */}
-        <div className="col-span-5 space-y-4">
+        {/* Middle: Time Tracking & Entries (col-span-6) */}
+        <div className="col-span-6 space-y-4">
           <StopwatchIntegrated
             dailyTasks={data.dailyTasks || []}
             onEntryChange={fetchDailyData}
@@ -235,13 +238,9 @@ export default function DailyPage() {
           />
         </div>
 
-        {/* Right: Summary & Calendar (col-span-4) */}
-        <div className="col-span-4 space-y-4">
+        {/* Right: Summary (col-span-3) */}
+        <div className="col-span-3">
           <WbsSummaryCard summary={data.wbsSummary || []} />
-          <DailyCalendarNavigator
-            currentDate={selectedDate}
-            onDateChange={handleDateChange}
-          />
         </div>
       </div>
     </div>

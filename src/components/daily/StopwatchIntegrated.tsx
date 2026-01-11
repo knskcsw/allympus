@@ -63,8 +63,7 @@ export default function StopwatchIntegrated({
   const [projects, setProjects] = useState<Project[]>([]);
   const [wbsList, setWbsList] = useState<Wbs[]>([]);
   const [selectedDailyTaskId, setSelectedDailyTaskId] = useState<string>("");
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
-  const [selectedWbsId, setSelectedWbsId] = useState<string>("");
+  const [selectedProjectWbs, setSelectedProjectWbs] = useState<string>(""); // Format: "projectId:wbsId"
   const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
 
   const fetchProjects = useCallback(async () => {
@@ -88,8 +87,9 @@ export default function StopwatchIntegrated({
     if (data) {
       setActiveEntry(data);
       setSelectedDailyTaskId(data.dailyTaskId || "");
-      setSelectedProjectId(data.projectId || "");
-      setSelectedWbsId(data.wbsId || "");
+      if (data.projectId && data.wbsId) {
+        setSelectedProjectWbs(`${data.projectId}:${data.wbsId}`);
+      }
       start(new Date(data.startTime));
     }
   }, [start]);
@@ -99,31 +99,23 @@ export default function StopwatchIntegrated({
     fetchActiveEntry();
   }, [fetchProjects, fetchActiveEntry]);
 
-  // Filter WBS by selected project
-  const filteredWbsList = selectedProjectId
-    ? wbsList.filter((wbs) => wbs.projectId === selectedProjectId)
-    : wbsList;
-
-  // When project changes, reset WBS selection if it's not in the new project
-  useEffect(() => {
-    if (selectedProjectId && selectedWbsId) {
-      const isWbsInProject = filteredWbsList.some(
-        (wbs) => wbs.id === selectedWbsId
-      );
-      if (!isWbsInProject) {
-        setSelectedWbsId("");
-      }
-    }
-  }, [selectedProjectId, selectedWbsId, filteredWbsList]);
-
   const handleStart = async () => {
+    // Parse selected project and WBS
+    let projectId = null;
+    let wbsId = null;
+    if (selectedProjectWbs && selectedProjectWbs !== "none") {
+      const [pId, wId] = selectedProjectWbs.split(":");
+      projectId = pId;
+      wbsId = wId;
+    }
+
     const response = await fetch("/api/time-entries", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         dailyTaskId: selectedDailyTaskId || null,
-        projectId: selectedProjectId || null,
-        wbsId: selectedWbsId || null,
+        projectId,
+        wbsId,
       }),
     });
 
@@ -195,47 +187,31 @@ export default function StopwatchIntegrated({
           </div>
 
           <div>
-            <Label htmlFor="project">プロジェクト（任意）</Label>
+            <Label htmlFor="project-wbs">プロジェクト・WBS（任意）</Label>
             <Select
-              value={selectedProjectId || "none"}
+              value={selectedProjectWbs || "none"}
               onValueChange={(value) =>
-                setSelectedProjectId(value === "none" ? "" : value)
+                setSelectedProjectWbs(value === "none" ? "" : value)
               }
               disabled={isRunning}
             >
-              <SelectTrigger id="project">
-                <SelectValue placeholder="プロジェクトを選択" />
+              <SelectTrigger id="project-wbs">
+                <SelectValue placeholder="プロジェクト・WBSを選択" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">プロジェクトなし</SelectItem>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.code} - {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="wbs">WBS（任意）</Label>
-            <Select
-              value={selectedWbsId || "none"}
-              onValueChange={(value) =>
-                setSelectedWbsId(value === "none" ? "" : value)
-              }
-              disabled={isRunning || !selectedProjectId}
-            >
-              <SelectTrigger id="wbs">
-                <SelectValue placeholder="WBSを選択" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">WBSなし</SelectItem>
-                {filteredWbsList.map((wbs) => (
-                  <SelectItem key={wbs.id} value={wbs.id}>
-                    {wbs.name}
-                  </SelectItem>
-                ))}
+                <SelectItem value="none">なし</SelectItem>
+                {projects.map((project) =>
+                  project.wbsList && project.wbsList.length > 0 ? (
+                    project.wbsList.map((wbs: Wbs) => (
+                      <SelectItem
+                        key={`${project.id}:${wbs.id}`}
+                        value={`${project.id}:${wbs.id}`}
+                      >
+                        {project.abbreviation || project.code}■{wbs.name}
+                      </SelectItem>
+                    ))
+                  ) : null
+                )}
               </SelectContent>
             </Select>
           </div>

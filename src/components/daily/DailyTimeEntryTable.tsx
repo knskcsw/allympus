@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { format } from "date-fns";
 
 interface TimeEntry {
   id: string;
@@ -34,9 +35,11 @@ interface TimeEntry {
   dailyTask?: { id: string; title: string } | null;
   task?: { id: string; title: string } | null;
   projectId: string | null;
-  project?: { id: string; code: string; name: string } | null;
+  project?: { id: string; code: string; name: string; abbreviation: string | null } | null;
   wbsId: string | null;
   wbs?: { id: string; name: string } | null;
+  startTime: Date;
+  endTime: Date | null;
   duration: number | null;
   note: string | null;
 }
@@ -66,7 +69,8 @@ export default function DailyTimeEntryTable({
     dailyTaskId: "",
     projectId: "",
     wbsId: "",
-    durationHours: "",
+    startTime: "",
+    endTime: "",
   });
 
   const handleEdit = (entry: TimeEntry) => {
@@ -75,9 +79,12 @@ export default function DailyTimeEntryTable({
       dailyTaskId: entry.dailyTaskId || "",
       projectId: entry.projectId || "",
       wbsId: entry.wbsId || "",
-      durationHours: entry.duration
-        ? (entry.duration / 3600).toFixed(2)
-        : "0.00",
+      startTime: entry.startTime
+        ? format(new Date(entry.startTime), "HH:mm")
+        : "",
+      endTime: entry.endTime
+        ? format(new Date(entry.endTime), "HH:mm")
+        : "",
     });
   };
 
@@ -85,13 +92,24 @@ export default function DailyTimeEntryTable({
     e.preventDefault();
     if (!editingEntry) return;
 
-    const durationSeconds = parseFloat(formData.durationHours) * 3600;
+    // Convert time strings to full DateTime
+    const startDate = new Date(editingEntry.startTime);
+    const [startHours, startMinutes] = formData.startTime.split(":").map(Number);
+    startDate.setHours(startHours, startMinutes, 0, 0);
+
+    let endDate = null;
+    if (formData.endTime) {
+      endDate = new Date(editingEntry.startTime);
+      const [endHours, endMinutes] = formData.endTime.split(":").map(Number);
+      endDate.setHours(endHours, endMinutes, 0, 0);
+    }
 
     onUpdate(editingEntry.id, {
       dailyTaskId: formData.dailyTaskId || null,
       projectId: formData.projectId || null,
       wbsId: formData.wbsId || null,
-      duration: Math.round(durationSeconds),
+      startTime: startDate.toISOString(),
+      endTime: endDate ? endDate.toISOString() : null,
     });
 
     setEditingEntry(null);
@@ -107,6 +125,13 @@ export default function DailyTimeEntryTable({
     return (seconds / 3600).toFixed(2);
   };
 
+  // Format time range
+  const formatTimeRange = (entry: TimeEntry): string => {
+    const start = format(new Date(entry.startTime), "HH:mm");
+    const end = entry.endTime ? format(new Date(entry.endTime), "HH:mm") : "進行中";
+    return `${start} - ${end}`;
+  };
+
   return (
     <>
       <Card>
@@ -118,8 +143,8 @@ export default function DailyTimeEntryTable({
             <TableHeader>
               <TableRow>
                 <TableHead>タスク名</TableHead>
-                <TableHead>プロジェクト</TableHead>
-                <TableHead>WBS</TableHead>
+                <TableHead>プロジェクト・WBS</TableHead>
+                <TableHead className="text-right">時間帯</TableHead>
                 <TableHead className="text-right">稼働時間</TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
@@ -140,11 +165,15 @@ export default function DailyTimeEntryTable({
                         "タスクなし"}
                     </TableCell>
                     <TableCell>
-                      {entry.project
+                      {entry.project && entry.wbs
+                        ? `${entry.project.abbreviation || entry.project.code}■${entry.wbs.name}`
+                        : entry.project
                         ? `${entry.project.code} - ${entry.project.name}`
                         : "-"}
                     </TableCell>
-                    <TableCell>{entry.wbs?.name || "-"}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatTimeRange(entry)}
+                    </TableCell>
                     <TableCell className="text-right font-mono font-semibold">
                       {formatDurationHours(entry.duration)}h
                     </TableCell>
@@ -263,22 +292,30 @@ export default function DailyTimeEntryTable({
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="duration">稼働時間（時間、少数形式）</Label>
-              <Input
-                id="duration"
-                type="number"
-                step="0.01"
-                value={formData.durationHours}
-                onChange={(e) =>
-                  setFormData({ ...formData, durationHours: e.target.value })
-                }
-                placeholder="1.5"
-                required
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                例: 1時間30分 = 1.5
-              </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="startTime">開始時間</Label>
+                <Input
+                  id="startTime"
+                  type="time"
+                  value={formData.startTime}
+                  onChange={(e) =>
+                    setFormData({ ...formData, startTime: e.target.value })
+                  }
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="endTime">終了時間</Label>
+                <Input
+                  id="endTime"
+                  type="time"
+                  value={formData.endTime}
+                  onChange={(e) =>
+                    setFormData({ ...formData, endTime: e.target.value })
+                  }
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-2">
