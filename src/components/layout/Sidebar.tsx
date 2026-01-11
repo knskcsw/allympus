@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Briefcase,
   CalendarRange,
+  LineChart,
   GripVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ const navigation = [
   { name: "Holidays", href: "/holidays", icon: CalendarRange },
   { name: "Calendar", href: "/calendar", icon: Calendar },
   { name: "Reports", href: "/reports", icon: BarChart3 },
+  { name: "EVM", href: "/evm", icon: LineChart },
 ];
 
 const MIN_WIDTH = 180;
