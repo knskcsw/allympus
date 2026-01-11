@@ -106,23 +106,23 @@ export default function EvmPage() {
                   series={[
                     {
                       label: "PV",
-                      color: "hsl(var(--chart-2))",
+                      color: "var(--chart-2)",
                       data: project.pvSeries,
                     },
                     {
                       label: "AC",
-                      color: "hsl(var(--chart-1))",
+                      color: "var(--chart-1)",
                       data: project.acSeries,
                     },
                   ]}
                 />
                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
                   <span className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "hsl(var(--chart-2))" }} />
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--chart-2)" }} />
                     PV
                   </span>
                   <span className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "hsl(var(--chart-1))" }} />
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--chart-1)" }} />
                     AC
                   </span>
                   <span>
