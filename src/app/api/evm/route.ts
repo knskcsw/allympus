@@ -40,7 +40,8 @@ export async function GET(request: NextRequest) {
     format(day, "yyyy-MM-dd")
   );
 
-  const [projects, timeEntries, holidays, workHours] = await Promise.all([
+  const [projects, timeEntries, dailyTasks, holidays, workHours] =
+    await Promise.all([
     prisma.project.findMany({
       orderBy: [{ name: "asc" }],
     }),
@@ -57,11 +58,32 @@ export async function GET(request: NextRequest) {
           not: null,
         },
       },
-      include: {
-        dailyTask: true,
-      },
       orderBy: {
         startTime: "asc",
+      },
+    }),
+    prisma.dailyTask.findMany({
+      where: {
+        date: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        timeEntries: {
+          where: {
+            projectId: { not: null },
+          },
+          select: {
+            projectId: true,
+          },
+          orderBy: {
+            startTime: "asc",
+          },
+        },
+      },
+      orderBy: {
+        date: "asc",
       },
     }),
     prisma.holiday.findMany({
@@ -95,11 +117,20 @@ export async function GET(request: NextRequest) {
 
   const fixedTaskByProject: Record<string, DailySeries> = {};
   const actualByProject: Record<string, DailySeries> = {};
-  const fixedTaskSeen = new Set<string>();
 
   for (const project of projects) {
     fixedTaskByProject[project.id] = buildEmptySeries(days);
     actualByProject[project.id] = buildEmptySeries(days);
+  }
+
+  for (const task of dailyTasks) {
+    if (!task.estimatedMinutes) continue;
+    const taskProjectId = task.timeEntries.find(
+      (entry) => entry.projectId
+    )?.projectId;
+    if (!taskProjectId || !fixedTaskByProject[taskProjectId]) continue;
+    const taskDay = format(task.date, "yyyy-MM-dd");
+    fixedTaskByProject[taskProjectId][taskDay] += task.estimatedMinutes / 60;
   }
 
   for (const entry of timeEntries) {
@@ -107,16 +138,6 @@ export async function GET(request: NextRequest) {
     const dayKey = format(entry.startTime, "yyyy-MM-dd");
     if (actualByProject[entry.projectId]) {
       actualByProject[entry.projectId][dayKey] += (entry.duration || 0) / 3600;
-    }
-
-    if (!entry.dailyTask || !entry.dailyTask.estimatedMinutes) continue;
-    const taskDay = format(entry.dailyTask.date, "yyyy-MM-dd");
-    const fixedKey = `${entry.dailyTask.id}:${entry.projectId}`;
-    if (fixedTaskSeen.has(fixedKey)) continue;
-    fixedTaskSeen.add(fixedKey);
-    if (fixedTaskByProject[entry.projectId]) {
-      fixedTaskByProject[entry.projectId][taskDay] +=
-        entry.dailyTask.estimatedMinutes / 60;
     }
   }
 
