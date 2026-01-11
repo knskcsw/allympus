@@ -319,7 +319,6 @@ export default function DailyPage() {
 
   return (
     <div className="space-y-4 p-6">
-      <h1 className="text-3xl font-bold">Daily</h1>
 
       {/* Top: Attendance Banner with Date Navigation */}
       <DailyAttendanceBanner
