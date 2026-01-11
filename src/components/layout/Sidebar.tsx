@@ -17,6 +17,7 @@ import {
   CalendarRange,
   LineChart,
   GripVertical,
+  MoonStar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Daily", href: "/daily", icon: CalendarDays },
   { name: "Attendance", href: "/attendance", icon: Clock },
+  { name: "Sleep", href: "/sleep", icon: MoonStar },
   { name: "Projects", href: "/projects", icon: FolderKanban },
   { name: "Kadmin", href: "/kadmin", icon: Briefcase },
   { name: "Holidays", href: "/holidays", icon: CalendarRange },
