@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, CheckSquare, Timer, TrendingUp } from "lucide-react";
+import { Home, Clock, CheckSquare, Timer, TrendingUp } from "lucide-react";
 import { format, startOfDay, startOfWeek, endOfWeek } from "date-fns";
 import { ja } from "date-fns/locale";
 
@@ -74,7 +74,12 @@ export default async function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
+      <div className="flex items-center gap-3">
+        <div className="rounded-full bg-primary/10 p-2 text-primary">
+          <Home className="h-5 w-5" />
+        </div>
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>

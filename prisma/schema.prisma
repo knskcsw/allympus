@@ -172,3 +172,23 @@ model MonthlyVacationHours {
   @@unique([fiscalYear, month])
   @@map("monthly_vacation_hours")
 }
+
+model SalaryRecord {
+  id                  String   @id @default(cuid())
+  year                Int
+  month               Int
+  gross               Int      @default(0)
+  net                 Int      @default(0)
+  healthInsurance     Int      @default(0)
+  pension             Int      @default(0)
+  employmentInsurance Int      @default(0)
+  incomeTax           Int      @default(0)
+  residentTax         Int      @default(0)
+  otherDeductions     Int      @default(0)
+  bonus               Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([year, month])
+  @@map("salary_records")
+}

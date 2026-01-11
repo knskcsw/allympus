@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, LineChart, Trash2 } from "lucide-react";
 import EvmLineChart from "@/components/evm/EvmLineChart";
 import type { Holiday } from "@/generated/prisma/client";
 
@@ -267,7 +267,10 @@ export default function EvmPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
+        <div className="flex items-center gap-3">
+          <div className="rounded-full bg-primary/10 p-2 text-primary">
+            <LineChart className="h-5 w-5" />
+          </div>
           <h1 className="text-3xl font-bold">EVM</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">

@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Save, Calculator } from "lucide-react";
+import { Briefcase, Save, Calculator } from "lucide-react";
 
 interface Project {
   id: string;
@@ -528,8 +528,11 @@ export default function KadminPage() {
           {toastMessage}
         </div>
       )}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="rounded-full bg-primary/10 p-2 text-primary">
+            <Briefcase className="h-5 w-5" />
+          </div>
           <h1 className="text-3xl font-bold">Kadmin</h1>
         </div>
         <div className="flex gap-2">

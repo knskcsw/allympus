@@ -14,7 +14,7 @@ import { HolidayCalendar } from "@/components/holidays/HolidayCalendar";
 import { AddHolidayDialog } from "@/components/holidays/AddHolidayDialog";
 import { BulkAddHolidayDialog } from "@/components/holidays/BulkAddHolidayDialog";
 import type { Holiday } from "@/generated/prisma/client";
-import { Plus, Trash2, FileSpreadsheet, Filter } from "lucide-react";
+import { CalendarRange, Plus, Trash2, FileSpreadsheet, Filter } from "lucide-react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -166,8 +166,11 @@ export default function HolidaysPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="rounded-full bg-primary/10 p-2 text-primary">
+            <CalendarRange className="h-5 w-5" />
+          </div>
           <h1 className="text-3xl font-bold">Holidays</h1>
         </div>
         <div className="flex items-center gap-4">
