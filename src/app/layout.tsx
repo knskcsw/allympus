@@ -59,7 +59,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Sidebar />
-        <Header />
+        <Header sidebarOffset={isSidebarCollapsed ? 64 : sidebarWidth} />
         <main
           className="mt-16 min-h-[calc(100vh-4rem)] p-6 transition-all duration-300"
           style={{
