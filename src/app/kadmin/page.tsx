@@ -51,14 +51,23 @@ const parseNumber = (value: string | null) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const isLikelyNumber = (value: string) => {
+  const normalized = value.replace(/,/g, "").trim();
+  if (!normalized) return false;
+  return /^-?\d+(\.\d+)?$/.test(normalized);
+};
+
+const roundToTenth = (value: number) => Math.round(value * 10) / 10;
+
 type EditableCellProps = {
   value: number;
   onCommit: (value: number) => void;
+  onPaste?: (event: React.ClipboardEvent<HTMLDivElement>) => void;
   className?: string;
   ariaLabel?: string;
 };
 
-const EditableCell = ({ value, onCommit, className, ariaLabel }: EditableCellProps) => {
+const EditableCell = ({ value, onCommit, onPaste, className, ariaLabel }: EditableCellProps) => {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -87,6 +96,7 @@ const EditableCell = ({ value, onCommit, className, ariaLabel }: EditableCellPro
       suppressContentEditableWarning
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
+      onPaste={onPaste}
       className={`min-h-[2rem] w-full whitespace-nowrap text-right tabular-nums outline-none ${className ?? ""}`}
     />
   );
@@ -100,10 +110,31 @@ export default function KadminPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [calculating, setCalculating] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetchAllData();
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+      toastTimeoutRef.current = null;
+    }, 3000);
+  };
 
   const fetchAllData = async () => {
     try {
@@ -233,56 +264,96 @@ export default function KadminPage() {
     }));
   };
 
-  const handleTablePaste = (e: React.ClipboardEvent) => {
-    const pasteData = e.clipboardData.getData("text");
-    if (!pasteData) return;
+  const normalizePasteRows = (pasteData: string) => {
+    return pasteData
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .split("\n")
+      .map((row) => row.split("\t").map((cell) => cell.trim()))
+      .filter((cells) => cells.some((cell) => cell.length > 0));
+  };
 
-    // Parse TSV data (tab-separated values from Excel)
-    const rows = pasteData.split("\n").filter((row) => row.trim());
+  const applyPasteData = (startProjectIndex: number, startColumnIndex: number, pasteData: string) => {
+    const rows = normalizePasteRows(pasteData);
     if (rows.length === 0) return;
 
-    e.preventDefault();
+    setWorkHoursData((prev) => {
+      const updated = { ...prev };
 
-    // Try to parse and apply data
-    // Expected format: each row has project name and then 12 pairs of values (est, actual)
-    // or just 12 values for actual hours
-    const updates = { ...workHoursData };
+      for (let rowOffset = 0; rowOffset < rows.length; rowOffset++) {
+        const project = projects[startProjectIndex + rowOffset];
+        if (!project) break;
 
-    for (let i = 0; i < rows.length && i < projects.length; i++) {
-      const cells = rows[i].split("\t");
-      const project = projects[i];
-
-      // Skip project name cell (first cell)
-      let cellIndex = 1;
-
-      for (let monthIdx = 0; monthIdx < MONTHS.length; monthIdx++) {
-        const month = MONTHS[monthIdx];
-
-        if (!updates[project.id]) {
-          updates[project.id] = {};
+        let cells = rows[rowOffset];
+        if (
+          cells.length >= MONTHS.length * 2 + 1 &&
+          !isLikelyNumber(cells[0])
+        ) {
+          cells = cells.slice(1);
         }
-        if (!updates[project.id][month]) {
-          updates[project.id][month] = {
+
+        const hasNumeric = cells.some((cell) => isLikelyNumber(cell));
+        if (!hasNumeric) {
+          continue;
+        }
+
+        const projectData = updated[project.id] ? { ...updated[project.id] } : {};
+
+        for (let colOffset = 0; colOffset < cells.length; colOffset++) {
+          const columnIndex = startColumnIndex + colOffset;
+          if (columnIndex >= MONTHS.length * 2) break;
+
+          const monthIndex = Math.floor(columnIndex / 2);
+          const field =
+            columnIndex % 2 === 0 ? "estimatedHours" : "actualHours";
+          const month = MONTHS[monthIndex];
+
+          const existingMonth = projectData[month] ?? {
             estimatedHours: 0,
             actualHours: 0,
             overtimeHours: 0,
             workingDays: DEFAULT_WORKING_DAYS[month] || 20,
           };
+          const monthData = { ...existingMonth };
+          monthData[field] = parseNumber(cells[colOffset]);
+          projectData[month] = monthData;
         }
 
-        // Try to read estimated and actual hours
-        const estValue = parseNumber(cells[cellIndex]?.trim() || "0");
-        const actValue = parseNumber(cells[cellIndex + 1]?.trim() || "0");
+        updated[project.id] = projectData;
+      }
 
-        updates[project.id][month].estimatedHours = estValue;
-        updates[project.id][month].actualHours = actValue;
+      return updated;
+    });
+  };
 
-        cellIndex += 2;
+  const handleCellPaste = (
+    event: React.ClipboardEvent<HTMLDivElement>,
+    projectIndex: number,
+    monthIndex: number,
+    field: "estimatedHours" | "actualHours"
+  ) => {
+    const pasteData = event.clipboardData.getData("text");
+    if (!pasteData) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rows = normalizePasteRows(pasteData);
+    if (rows.length > 0) {
+      let cells = rows[0];
+      if (
+        cells.length >= MONTHS.length * 2 + 1 &&
+        !isLikelyNumber(cells[0])
+      ) {
+        cells = cells.slice(1);
+      }
+      if (cells.length > 0) {
+        event.currentTarget.textContent = String(parseNumber(cells[0]));
       }
     }
 
-    setWorkHoursData(updates);
-    alert("データを貼り付けました");
+    const startColumnIndex = monthIndex * 2 + (field === "actualHours" ? 1 : 0);
+    applyPasteData(projectIndex, startColumnIndex, pasteData);
   };
 
   const calculateStandardHours = (workingDays: number) => {
@@ -355,10 +426,6 @@ export default function KadminPage() {
   };
 
   const handleCalculateActual = async () => {
-    if (!confirm("タスクの実績時間で「実績」列を上書きしますか？")) {
-      return;
-    }
-
     setCalculating(true);
     try {
       const res = await fetch(`/api/kadmin/actual-hours?fiscalYear=${FISCAL_YEAR}`);
@@ -380,17 +447,17 @@ export default function KadminPage() {
         // Apply calculated actual hours
         for (const item of actualHours) {
           if (updated[item.projectId] && updated[item.projectId][item.month]) {
-            updated[item.projectId][item.month].actualHours = item.hours;
+            updated[item.projectId][item.month].actualHours = roundToTenth(item.hours);
           }
         }
 
         return updated;
       });
 
-      alert("実績時間を計算しました");
+      showToast("実績時間を計算しました");
     } catch (error) {
       console.error("Failed to calculate actual hours:", error);
-      alert("実績時間の計算に失敗しました");
+      showToast("実績時間の計算に失敗しました");
     } finally {
       setCalculating(false);
     }
@@ -456,6 +523,11 @@ export default function KadminPage() {
 
   return (
     <div className="space-y-6">
+      {toastMessage && (
+        <div className="fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded bg-slate-900 px-4 py-2 text-sm text-white shadow-lg">
+          {toastMessage}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Kadmin</h1>
@@ -478,16 +550,16 @@ export default function KadminPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>稼働時間一覧</CardTitle>
+          <CardTitle className="sr-only">稼働時間一覧</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto" onPaste={handleTablePaste}>
+          <div className="overflow-x-auto pb-6">
             <Table>
               <TableHeader>
                 {/* ヘッダー第1行: 月名 */}
                 <TableRow>
                   <TableHead rowSpan={2} className="w-[200px] sticky left-0 bg-background z-10">
-                    プロジェクト
+                    Project
                   </TableHead>
                   {MONTH_NAMES.map((name) => (
                     <TableHead key={name} colSpan={2} className="text-center min-w-[160px]">
@@ -514,19 +586,22 @@ export default function KadminPage() {
               </TableHeader>
               <TableBody>
                 {/* プロジェクト行 */}
-                {projects.map((project) => (
+                {projects.map((project, projectIndex) => (
                   <TableRow key={project.id}>
                     <TableCell className="sticky left-0 bg-background font-medium z-10 border border-muted-foreground/20 px-2 py-1">
                       {project.code} - {project.name}
                     </TableCell>
                     {/* 12ヶ月×2列 */}
-                    {MONTHS.map((month) => (
+                    {MONTHS.map((month, monthIndex) => (
                       <Fragment key={`${project.id}-${month}`}>
                         <TableCell className={cellClass}>
                           <EditableCell
                             value={workHoursData[project.id]?.[month]?.estimatedHours || 0}
                             onCommit={(value) =>
                               handleCellChange(project.id, month, "estimatedHours", value)
+                            }
+                            onPaste={(event) =>
+                              handleCellPaste(event, projectIndex, monthIndex, "estimatedHours")
                             }
                             ariaLabel={`${project.code} ${MONTH_NAMES[MONTHS.indexOf(month)]} 予測`}
                           />
@@ -536,6 +611,9 @@ export default function KadminPage() {
                             value={workHoursData[project.id]?.[month]?.actualHours || 0}
                             onCommit={(value) =>
                               handleCellChange(project.id, month, "actualHours", value)
+                            }
+                            onPaste={(event) =>
+                              handleCellPaste(event, projectIndex, monthIndex, "actualHours")
                             }
                             ariaLabel={`${project.code} ${MONTH_NAMES[MONTHS.indexOf(month)]} 実績`}
                           />
@@ -635,8 +713,8 @@ export default function KadminPage() {
                 </TableRow>
 
                 {/* 標準時間行（参考情報） */}
-                <TableRow className="bg-muted/50">
-                  <TableCell className="sticky left-0 bg-muted/50 font-medium text-sm z-10 border border-muted-foreground/20 px-2 py-1">
+                <TableRow className="bg-muted">
+                  <TableCell className="sticky left-0 bg-muted font-bold text-sm z-10 border border-muted-foreground/20 px-2 py-1">
                     標準時間
                   </TableCell>
                   {MONTHS.map((month) => {
