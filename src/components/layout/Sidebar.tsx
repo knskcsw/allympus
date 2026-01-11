@@ -9,7 +9,6 @@ import {
   CheckSquare,
   Calendar,
   BarChart3,
-  Timer,
   FolderKanban,
   CalendarDays,
   ChevronLeft,
@@ -37,6 +36,18 @@ const navigation = [
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 400;
 const DEFAULT_WIDTH = 256; // 64 * 4 = w-64
+
+function OlympusIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M2 20L10 6l4 6 4-4 6 12H2z" fill="currentColor" />
+    </svg>
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -126,7 +137,7 @@ export function Sidebar() {
           "flex items-center gap-2 font-semibold",
           isCollapsed && "justify-center w-full"
         )}>
-          <Timer className="h-6 w-6 flex-shrink-0" />
+          <OlympusIcon className="h-6 w-6 flex-shrink-0 text-black" />
           {!isCollapsed && <span>Allympus</span>}
         </Link>
         {!isCollapsed && (
