@@ -5,7 +5,9 @@ export async function GET() {
   const activeEntry = await prisma.timeEntry.findFirst({
     where: { endTime: null },
     include: {
-      task: true,
+      dailyTask: true,
+      project: true,
+      wbs: true,
     },
   });
 

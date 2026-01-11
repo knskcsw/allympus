@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { startOfDay } from "date-fns";
 
 export async function GET(
   request: NextRequest,
@@ -7,18 +8,18 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const task = await prisma.task.findUnique({
+  const dailyTask = await prisma.dailyTask.findUnique({
     where: { id },
     include: {
       timeEntries: true,
     },
   });
 
-  if (!task) {
-    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  if (!dailyTask) {
+    return NextResponse.json({ error: "Daily task not found" }, { status: 404 });
   }
 
-  return NextResponse.json(task);
+  return NextResponse.json(dailyTask);
 }
 
 export async function PUT(
@@ -28,46 +29,29 @@ export async function PUT(
   const { id } = await params;
   const body = await request.json();
   const {
+    date,
     title,
     description,
     status,
     priority,
-    dueDate,
     estimatedMinutes,
-    projectId,
-    wbsId,
   } = body;
 
-  const task = await prisma.task.update({
+  const updateData: any = {};
+
+  if (date !== undefined) updateData.date = startOfDay(new Date(date));
+  if (title !== undefined) updateData.title = title;
+  if (description !== undefined) updateData.description = description;
+  if (status !== undefined) updateData.status = status;
+  if (priority !== undefined) updateData.priority = priority;
+  if (estimatedMinutes !== undefined) updateData.estimatedMinutes = estimatedMinutes;
+
+  const dailyTask = await prisma.dailyTask.update({
     where: { id },
-    data: {
-      title,
-      description,
-      status,
-      priority,
-      dueDate: dueDate ? new Date(dueDate) : null,
-      estimatedMinutes,
-      projectId: projectId !== undefined ? projectId : undefined,
-      wbsId: wbsId !== undefined ? wbsId : undefined,
-    },
-    include: {
-      project: {
-        select: {
-          id: true,
-          code: true,
-          name: true,
-        },
-      },
-      wbs: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
+    data: updateData,
   });
 
-  return NextResponse.json(task);
+  return NextResponse.json(dailyTask);
 }
 
 export async function DELETE(
@@ -76,7 +60,7 @@ export async function DELETE(
 ) {
   const { id } = await params;
 
-  await prisma.task.delete({
+  await prisma.dailyTask.delete({
     where: { id },
   });
 

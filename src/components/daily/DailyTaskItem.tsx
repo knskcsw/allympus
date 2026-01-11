@@ -1,21 +1,24 @@
 "use client";
 
-import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, Clock, FolderKanban } from "lucide-react";
-import type { Task } from "@/generated/prisma/client";
+import { Pencil, Trash2, Clock } from "lucide-react";
 
-type TaskWithProject = Task & {
+interface DailyTask {
+  id: string;
+  date: Date;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  estimatedMinutes: number | null;
   totalTimeSpent?: number;
-  project?: { id: string; code: string; name: string } | null;
-  wbs?: { id: string; name: string } | null;
-};
+}
 
-interface TaskCardProps {
-  task: TaskWithProject;
-  onEdit: (task: TaskWithProject) => void;
+interface DailyTaskItemProps {
+  task: DailyTask;
+  onEdit: (task: DailyTask) => void;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: string) => void;
 }
@@ -24,7 +27,6 @@ const statusColors: Record<string, string> = {
   TODO: "bg-gray-500",
   IN_PROGRESS: "bg-blue-500",
   DONE: "bg-green-500",
-  ARCHIVED: "bg-gray-400",
 };
 
 const priorityColors: Record<string, string> = {
@@ -43,23 +45,27 @@ function formatDuration(seconds: number): string {
   return `${minutes}m`;
 }
 
-export function TaskCard({
+export function DailyTaskItem({
   task,
   onEdit,
   onDelete,
   onStatusChange,
-}: TaskCardProps) {
+}: DailyTaskItemProps) {
   const nextStatus: Record<string, string> = {
     TODO: "IN_PROGRESS",
     IN_PROGRESS: "DONE",
-    DONE: "ARCHIVED",
+  };
+
+  const nextStatusLabel: Record<string, string> = {
+    TODO: "開始",
+    IN_PROGRESS: "完了",
   };
 
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
-          <CardTitle className="text-lg">{task.title}</CardTitle>
+          <CardTitle className="text-base">{task.title}</CardTitle>
           <div className="flex gap-1">
             <Button
               variant="ghost"
@@ -94,42 +100,30 @@ export function TaskCard({
           </Badge>
         </div>
 
-        {task.project && (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <FolderKanban className="h-3 w-3" />
-            <span className="font-mono">{task.project.code}</span>
-            {task.wbs && (
-              <>
-                <span>/</span>
-                <span>{task.wbs.name}</span>
-              </>
+        {/* Time tracking info */}
+        {(task.totalTimeSpent !== undefined || task.estimatedMinutes) && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            {task.totalTimeSpent !== undefined && (
+              <span className="font-semibold text-foreground">
+                {formatDuration(task.totalTimeSpent)}
+              </span>
+            )}
+            {task.estimatedMinutes && (
+              <span>/ {task.estimatedMinutes}m est.</span>
             )}
           </div>
         )}
 
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            <span>
-              {task.totalTimeSpent ? formatDuration(task.totalTimeSpent) : "0m"}
-            </span>
-            {task.estimatedMinutes && (
-              <span className="text-xs">/ {task.estimatedMinutes}m est.</span>
-            )}
-          </div>
-          {task.dueDate && (
-            <span>Due: {format(new Date(task.dueDate), "MM/dd")}</span>
-          )}
-        </div>
-
-        {task.status !== "ARCHIVED" && (
+        {/* Status change button */}
+        {nextStatus[task.status] && (
           <Button
-            variant="outline"
             size="sm"
+            variant="outline"
             className="w-full"
             onClick={() => onStatusChange(task.id, nextStatus[task.status])}
           >
-            Move to {nextStatus[task.status]}
+            {nextStatusLabel[task.status]}
           </Button>
         )}
       </CardContent>

@@ -10,15 +10,15 @@ import {
   BarChart3,
   Timer,
   FolderKanban,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
+  { name: "Daily", href: "/daily", icon: CalendarDays },
   { name: "Attendance", href: "/attendance", icon: Clock },
-  { name: "Tasks", href: "/tasks", icon: CheckSquare },
   { name: "Projects", href: "/projects", icon: FolderKanban },
-  { name: "Time Tracking", href: "/timer", icon: Timer },
   { name: "Calendar", href: "/calendar", icon: Calendar },
   { name: "Reports", href: "/reports", icon: BarChart3 },
 ];

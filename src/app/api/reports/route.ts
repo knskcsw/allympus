@@ -49,7 +49,9 @@ export async function GET(request: NextRequest) {
       endTime: { not: null },
     },
     include: {
-      task: true,
+      dailyTask: true,
+      project: true,
+      wbs: true,
     },
     orderBy: {
       startTime: "asc",
@@ -127,13 +129,15 @@ export async function GET(request: NextRequest) {
     totalDays: days.length,
   };
 
-  const taskSummary = timeEntries.reduce(
+  const wbsSummary = timeEntries.reduce(
     (acc, entry) => {
-      const taskName = entry.task?.title || "No Task";
-      if (!acc[taskName]) {
-        acc[taskName] = 0;
+      const projectName = entry.project?.name || "No Project";
+      const wbsName = entry.wbs?.name || "No WBS";
+      const key = `${projectName} - ${wbsName}`;
+      if (!acc[key]) {
+        acc[key] = 0;
       }
-      acc[taskName] += entry.duration || 0;
+      acc[key] += entry.duration || 0;
       return acc;
     },
     {} as Record<string, number>
@@ -143,6 +147,6 @@ export async function GET(request: NextRequest) {
     period: { start: startDate, end: endDate, type },
     dailyData,
     summary,
-    taskSummary,
+    wbsSummary,
   });
 }

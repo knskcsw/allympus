@@ -30,7 +30,7 @@ model Project {
   updatedAt    DateTime @updatedAt
 
   wbsList          Wbs[]
-  tasks            Task[]
+  timeEntries      TimeEntry[]
   projectWorkHours ProjectWorkHours[]
 
   @@map("projects")
@@ -44,41 +44,43 @@ model Wbs {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tasks Task[]
+  timeEntries TimeEntry[]
 
   @@map("wbs")
 }
 
-model Task {
+model DailyTask {
   id               String      @id @default(cuid())
+  date             DateTime
   title            String
   description      String?
   status           String      @default("TODO")
   priority         String      @default("MEDIUM")
-  dueDate          DateTime?
   estimatedMinutes Int?
-  projectId        String?
-  project          Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  wbsId            String?
-  wbs              Wbs?        @relation(fields: [wbsId], references: [id], onDelete: SetNull)
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
   timeEntries TimeEntry[]
 
-  @@map("tasks")
+  @@index([date])
+  @@index([status])
+  @@map("daily_tasks")
 }
 
 model TimeEntry {
-  id        String    @id @default(cuid())
-  taskId    String?
-  task      Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  startTime DateTime
-  endTime   DateTime?
-  duration  Int?
-  note      String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id          String      @id @default(cuid())
+  dailyTaskId String?
+  dailyTask   DailyTask?  @relation(fields: [dailyTaskId], references: [id], onDelete: SetNull)
+  projectId   String?
+  project     Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  wbsId       String?
+  wbs         Wbs?        @relation(fields: [wbsId], references: [id], onDelete: SetNull)
+  startTime   DateTime
+  endTime     DateTime?
+  duration    Int?
+  note        String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   @@map("time_entries")
 }

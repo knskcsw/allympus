@@ -5,7 +5,6 @@ import { startOfDay, endOfDay } from "date-fns";
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const date = searchParams.get("date");
-  const taskId = searchParams.get("taskId");
 
   const where: Record<string, unknown> = {};
 
@@ -17,18 +16,12 @@ export async function GET(request: NextRequest) {
     };
   }
 
-  if (taskId) {
-    where.taskId = taskId;
-  }
-
   const timeEntries = await prisma.timeEntry.findMany({
     where,
     include: {
-      task: {
-        include: {
-          project: true,
-        },
-      },
+      dailyTask: true,
+      project: true,
+      wbs: true,
     },
     orderBy: {
       startTime: "desc",
@@ -40,7 +33,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { taskId, note } = body;
+  const { dailyTaskId, projectId, wbsId, note } = body;
 
   const activeEntry = await prisma.timeEntry.findFirst({
     where: { endTime: null },
@@ -55,16 +48,16 @@ export async function POST(request: NextRequest) {
 
   const timeEntry = await prisma.timeEntry.create({
     data: {
-      taskId: taskId || null,
+      dailyTaskId: dailyTaskId || null,
+      projectId: projectId || null,
+      wbsId: wbsId || null,
       startTime: new Date(),
       note,
     },
     include: {
-      task: {
-        include: {
-          project: true,
-        },
-      },
+      dailyTask: true,
+      project: true,
+      wbs: true,
     },
   });
 

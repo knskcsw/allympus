@@ -32,7 +32,7 @@ interface ReportData {
     workedDays: number;
     totalDays: number;
   };
-  taskSummary: Record<string, number>;
+  wbsSummary: Record<string, number>;
 }
 
 function formatDuration(minutes: number): string {
@@ -207,10 +207,10 @@ export default function ReportsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Time by Task</CardTitle>
+            <CardTitle>Time by Project/WBS</CardTitle>
           </CardHeader>
           <CardContent>
-            {Object.keys(report.taskSummary).length === 0 ? (
+            {Object.keys(report.wbsSummary).length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 No tracked time for this period
               </div>
@@ -218,16 +218,16 @@ export default function ReportsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Task</TableHead>
+                    <TableHead>Project - WBS</TableHead>
                     <TableHead>Time</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {Object.entries(report.taskSummary)
+                  {Object.entries(report.wbsSummary)
                     .sort((a, b) => b[1] - a[1])
-                    .map(([task, seconds]) => (
-                      <TableRow key={task}>
-                        <TableCell>{task}</TableCell>
+                    .map(([wbs, seconds]) => (
+                      <TableRow key={wbs}>
+                        <TableCell>{wbs}</TableCell>
                         <TableCell>{formatSeconds(seconds)}</TableCell>
                       </TableRow>
                     ))}

@@ -1,0 +1,299 @@
+"use client";
+
+import { useState } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Pencil, Trash2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+interface TimeEntry {
+  id: string;
+  dailyTaskId: string | null;
+  dailyTask?: { id: string; title: string } | null;
+  task?: { id: string; title: string } | null;
+  projectId: string | null;
+  project?: { id: string; code: string; name: string } | null;
+  wbsId: string | null;
+  wbs?: { id: string; name: string } | null;
+  duration: number | null;
+  note: string | null;
+}
+
+interface DailyTimeEntryTableProps {
+  entries: TimeEntry[];
+  dailyTasks: Array<{ id: string; title: string }>;
+  projects: Array<{
+    id: string;
+    code: string;
+    name: string;
+    wbsList: Array<{ id: string; name: string }>;
+  }>;
+  onUpdate: (id: string, data: any) => void;
+  onDelete: (id: string) => void;
+}
+
+export default function DailyTimeEntryTable({
+  entries,
+  dailyTasks,
+  projects,
+  onUpdate,
+  onDelete,
+}: DailyTimeEntryTableProps) {
+  const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [formData, setFormData] = useState({
+    dailyTaskId: "",
+    projectId: "",
+    wbsId: "",
+    durationHours: "",
+  });
+
+  const handleEdit = (entry: TimeEntry) => {
+    setEditingEntry(entry);
+    setFormData({
+      dailyTaskId: entry.dailyTaskId || "",
+      projectId: entry.projectId || "",
+      wbsId: entry.wbsId || "",
+      durationHours: entry.duration
+        ? (entry.duration / 3600).toFixed(2)
+        : "0.00",
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEntry) return;
+
+    const durationSeconds = parseFloat(formData.durationHours) * 3600;
+
+    onUpdate(editingEntry.id, {
+      dailyTaskId: formData.dailyTaskId || null,
+      projectId: formData.projectId || null,
+      wbsId: formData.wbsId || null,
+      duration: Math.round(durationSeconds),
+    });
+
+    setEditingEntry(null);
+  };
+
+  // Get WBS list for selected project
+  const selectedProject = projects.find((p) => p.id === formData.projectId);
+  const wbsList = selectedProject?.wbsList || [];
+
+  // Format duration to decimal hours (e.g., 1.5)
+  const formatDurationHours = (seconds: number | null): string => {
+    if (!seconds) return "0.00";
+    return (seconds / 3600).toFixed(2);
+  };
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>稼働実績</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>タスク名</TableHead>
+                <TableHead>プロジェクト</TableHead>
+                <TableHead>WBS</TableHead>
+                <TableHead className="text-right">稼働時間</TableHead>
+                <TableHead className="text-right">操作</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entries.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    稼働実績がありません
+                  </TableCell>
+                </TableRow>
+              ) : (
+                entries.map((entry) => (
+                  <TableRow key={entry.id}>
+                    <TableCell>
+                      {entry.dailyTask?.title ||
+                        entry.task?.title ||
+                        "タスクなし"}
+                    </TableCell>
+                    <TableCell>
+                      {entry.project
+                        ? `${entry.project.code} - ${entry.project.name}`
+                        : "-"}
+                    </TableCell>
+                    <TableCell>{entry.wbs?.name || "-"}</TableCell>
+                    <TableCell className="text-right font-mono font-semibold">
+                      {formatDurationHours(entry.duration)}h
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleEdit(entry)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => onDelete(entry.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Edit Dialog */}
+      <Dialog
+        open={!!editingEntry}
+        onOpenChange={() => setEditingEntry(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>稼働実績を編集</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="dailyTask">タスク</Label>
+              <Select
+                value={formData.dailyTaskId || "none"}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    dailyTaskId: value === "none" ? "" : value,
+                  })
+                }
+              >
+                <SelectTrigger id="dailyTask">
+                  <SelectValue placeholder="タスクを選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">タスクなし</SelectItem>
+                  {dailyTasks.map((task) => (
+                    <SelectItem key={task.id} value={task.id}>
+                      {task.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="project">プロジェクト</Label>
+              <Select
+                value={formData.projectId || "none"}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    projectId: value === "none" ? "" : value,
+                    wbsId: "", // Reset WBS when project changes
+                  })
+                }
+              >
+                <SelectTrigger id="project">
+                  <SelectValue placeholder="プロジェクトを選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">プロジェクトなし</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.code} - {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="wbs">WBS</Label>
+              <Select
+                value={formData.wbsId || "none"}
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    wbsId: value === "none" ? "" : value,
+                  })
+                }
+                disabled={!formData.projectId}
+              >
+                <SelectTrigger id="wbs">
+                  <SelectValue placeholder="WBSを選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">WBSなし</SelectItem>
+                  {wbsList.map((wbs) => (
+                    <SelectItem key={wbs.id} value={wbs.id}>
+                      {wbs.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="duration">稼働時間（時間、少数形式）</Label>
+              <Input
+                id="duration"
+                type="number"
+                step="0.01"
+                value={formData.durationHours}
+                onChange={(e) =>
+                  setFormData({ ...formData, durationHours: e.target.value })
+                }
+                placeholder="1.5"
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                例: 1時間30分 = 1.5
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingEntry(null)}
+              >
+                キャンセル
+              </Button>
+              <Button type="submit">更新</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

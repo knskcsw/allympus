@@ -29,7 +29,7 @@ async function getDashboardData() {
           },
         },
       }),
-      prisma.task.count({
+      prisma.dailyTask.count({
         where: {
           status: {
             in: ["TODO", "IN_PROGRESS"],
@@ -41,7 +41,7 @@ async function getDashboardData() {
           endTime: null,
         },
         include: {
-          task: true,
+          dailyTask: true,
         },
       }),
     ]);
@@ -139,7 +139,7 @@ export default async function Dashboard() {
             </div>
             <p className="text-xs text-muted-foreground">
               {activeTimeEntry
-                ? `Working on: ${activeTimeEntry.task?.title || "No task"}`
+                ? `Working on: ${activeTimeEntry.dailyTask?.title || "No task"}`
                 : "No active timer"}
             </p>
           </CardContent>

@@ -10,11 +10,9 @@ export async function GET(
   const timeEntry = await prisma.timeEntry.findUnique({
     where: { id },
     include: {
-      task: {
-        include: {
-          project: true,
-        },
-      },
+      dailyTask: true,
+      project: true,
+      wbs: true,
     },
   });
 
@@ -34,11 +32,13 @@ export async function PUT(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { taskId, startTime, endTime, note, stop } = body;
+  const { dailyTaskId, projectId, wbsId, startTime, endTime, note, stop } = body;
 
   const updateData: Record<string, unknown> = {};
 
-  if (taskId !== undefined) updateData.taskId = taskId;
+  if (dailyTaskId !== undefined) updateData.dailyTaskId = dailyTaskId;
+  if (projectId !== undefined) updateData.projectId = projectId;
+  if (wbsId !== undefined) updateData.wbsId = wbsId;
   if (note !== undefined) updateData.note = note;
 
   // startTimeの更新
@@ -74,11 +74,9 @@ export async function PUT(
     where: { id },
     data: updateData,
     include: {
-      task: {
-        include: {
-          project: true,
-        },
-      },
+      dailyTask: true,
+      project: true,
+      wbs: true,
     },
   });
 
