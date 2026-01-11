@@ -196,7 +196,7 @@ export default function HolidaysPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>カレンダー ({fiscalYear})</CardTitle>
+          <CardTitle>Calendar {fiscalYear}</CardTitle>
         </CardHeader>
         <CardContent>
           <HolidayCalendar
