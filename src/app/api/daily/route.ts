@@ -121,6 +121,9 @@ export async function GET(request: NextRequest) {
   }>();
 
   timeEntries.forEach((entry) => {
+    if (!entry.projectId) {
+      return;
+    }
     const projectId = entry.projectId || null;
     const projectName = entry.project?.name || "No Project";
     const projectAbbreviation = entry.project?.abbreviation || null;
