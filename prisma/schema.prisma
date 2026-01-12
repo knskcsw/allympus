@@ -59,6 +59,9 @@ model Project {
   abbreviation String?
   workType     WorkType  @default(IN_PROGRESS)
   isActive     Boolean   @default(true)
+  isKadminActive Boolean @default(true)
+  sortOrder    Int       @default(0)
+  kadminSortOrder Int    @default(0)
   member       String?
   startDate    DateTime?
   endDate      DateTime?

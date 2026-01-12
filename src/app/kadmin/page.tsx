@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, Save, Calculator } from "lucide-react";
+import { Briefcase, Save, Calculator, ArrowUp, ArrowDown } from "lucide-react";
 
 interface Project {
   id: string;
@@ -150,7 +150,9 @@ export default function KadminPage() {
   const fetchData = async () => {
     try {
       // Fetch projects
-      const projectsRes = await fetch("/api/projects");
+      const projectsRes = await fetch(
+        "/api/projects?includeInactive=true&kadminActive=true"
+      );
       const projectsData = await projectsRes.json();
       setProjects(projectsData);
 
@@ -253,6 +255,28 @@ export default function KadminPage() {
         },
       },
     }));
+  };
+
+  const updateProjectOrder = async (projectIds: string[]) => {
+    await fetch("/api/projects/reorder-kadmin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectIds }),
+    });
+  };
+
+  const handleMoveProject = (projectId: string, direction: "up" | "down") => {
+    setProjects((prev) => {
+      const next = [...prev];
+      const currentIndex = next.findIndex((project) => project.id === projectId);
+      const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= next.length) {
+        return prev;
+      }
+      [next[currentIndex], next[targetIndex]] = [next[targetIndex], next[currentIndex]];
+      void updateProjectOrder(next.map((project) => project.id));
+      return next;
+    });
   };
 
   const handleVacationChange = (month: number, value: number) => {
@@ -519,7 +543,7 @@ export default function KadminPage() {
     return <div className="p-6">Loading...</div>;
   }
 
-  const cellClass = "border border-muted-foreground/20 px-2 py-1";
+  const cellClass = "border border-muted-foreground/20 px-1 py-0.5 text-sm";
 
   return (
     <div className="space-y-6">
@@ -561,15 +585,15 @@ export default function KadminPage() {
               <TableHeader>
                 {/* ヘッダー第1行: 月名 */}
                 <TableRow>
-                  <TableHead rowSpan={2} className="w-[200px] sticky left-0 bg-background z-10">
+                  <TableHead rowSpan={2} className="w-[150px] sticky left-0 bg-background z-10 text-sm">
                     Project
                   </TableHead>
                   {MONTH_NAMES.map((name) => (
-                    <TableHead key={name} colSpan={2} className="text-center min-w-[160px]">
+                    <TableHead key={name} colSpan={2} className="text-center min-w-[120px] text-xs">
                       {name}
                     </TableHead>
                   ))}
-                  <TableHead rowSpan={2} colSpan={2} className="text-center min-w-[160px] bg-muted">
+                  <TableHead rowSpan={2} colSpan={2} className="text-center min-w-[120px] bg-muted text-xs">
                     年間合計
                   </TableHead>
                 </TableRow>
@@ -577,10 +601,10 @@ export default function KadminPage() {
                 <TableRow>
                   {MONTHS.map((month) => (
                     <Fragment key={`${month}-header`}>
-                      <TableHead className="text-center text-xs min-w-[80px]">
+                      <TableHead className="text-center text-[11px] min-w-[60px]">
                         予測
                       </TableHead>
-                      <TableHead className="text-center text-xs min-w-[80px]">
+                      <TableHead className="text-center text-[11px] min-w-[60px]">
                         実績
                       </TableHead>
                     </Fragment>
@@ -589,10 +613,35 @@ export default function KadminPage() {
               </TableHeader>
               <TableBody>
                 {/* プロジェクト行 */}
-                {projects.map((project, projectIndex) => (
+                {projects.map((project, projectIndex) => {
+                  const isFirst = projectIndex === 0;
+                  const isLast = projectIndex === projects.length - 1;
+                  return (
                   <TableRow key={project.id}>
-                    <TableCell className="sticky left-0 bg-background font-medium z-10 border border-muted-foreground/20 px-2 py-1">
-                      {project.code} - {project.name}
+                    <TableCell className="sticky left-0 bg-background font-medium z-10 border border-muted-foreground/20 px-1 py-0.5 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate">{project.name}</span>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => handleMoveProject(project.id, "up")}
+                            disabled={isFirst}
+                          >
+                            <ArrowUp className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => handleMoveProject(project.id, "down")}
+                            disabled={isLast}
+                          >
+                            <ArrowDown className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
                     </TableCell>
                     {/* 12ヶ月×2列 */}
                     {MONTHS.map((month, monthIndex) => (
@@ -624,26 +673,27 @@ export default function KadminPage() {
                       </Fragment>
                     ))}
                     {/* 年間合計列 */}
-                    <TableCell className="text-right font-medium bg-muted border border-muted-foreground/20 px-2 py-1">
+                    <TableCell className="text-right font-medium bg-muted border border-muted-foreground/20 px-1 py-0.5 text-sm">
                       {calculateYearTotal(project.id, "estimatedHours").toFixed(1)}h
                     </TableCell>
-                    <TableCell className="text-right font-medium bg-muted border border-muted-foreground/20 px-2 py-1">
+                    <TableCell className="text-right font-medium bg-muted border border-muted-foreground/20 px-1 py-0.5 text-sm">
                       {calculateYearTotal(project.id, "actualHours").toFixed(1)}h
                     </TableCell>
                   </TableRow>
-                ))}
+                );
+                })}
 
                 {/* 休暇行 */}
                 <TableRow className="bg-blue-50 dark:bg-blue-950">
-                  <TableCell className="sticky left-0 bg-blue-50 dark:bg-blue-950 font-medium z-10 border border-muted-foreground/20 px-2 py-1">
+                  <TableCell className="sticky left-0 bg-blue-50 dark:bg-blue-950 font-medium z-10 border border-muted-foreground/20 px-1 py-0.5 text-sm">
                     休暇
                   </TableCell>
                   {MONTHS.map((month) => (
                     <Fragment key={`vacation-${month}`}>
-                      <TableCell className="text-center text-sm text-muted-foreground border border-muted-foreground/20 px-2 py-1">
+                      <TableCell className="text-center text-xs text-muted-foreground border border-muted-foreground/20 px-1 py-0.5">
                         -
                       </TableCell>
-                      <TableCell className="bg-blue-50 dark:bg-blue-950 border border-muted-foreground/20 px-2 py-1">
+                      <TableCell className="bg-blue-50 dark:bg-blue-950 border border-muted-foreground/20 px-1 py-0.5 text-sm">
                         <EditableCell
                           value={vacationData[month]?.hours || 0}
                           onCommit={(value) => handleVacationChange(month, value)}
@@ -653,41 +703,41 @@ export default function KadminPage() {
                     </Fragment>
                   ))}
                   {/* 年間合計 */}
-                  <TableCell className="text-center text-muted-foreground bg-blue-100 dark:bg-blue-900 border border-muted-foreground/20 px-2 py-1">
+                  <TableCell className="text-center text-muted-foreground bg-blue-100 dark:bg-blue-900 border border-muted-foreground/20 px-1 py-0.5 text-xs">
                     -
                   </TableCell>
-                  <TableCell className="text-right font-medium bg-blue-100 dark:bg-blue-900 border border-muted-foreground/20 px-2 py-1">
+                  <TableCell className="text-right font-medium bg-blue-100 dark:bg-blue-900 border border-muted-foreground/20 px-1 py-0.5 text-sm">
                     {calculateVacationTotal().toFixed(1)}h
                   </TableCell>
                 </TableRow>
 
                 {/* 月別合計行（縦方向集計） */}
                 <TableRow className="bg-green-50 dark:bg-green-950 font-bold">
-                  <TableCell className="sticky left-0 bg-green-50 dark:bg-green-950 z-10 border border-muted-foreground/20 px-2 py-1">
+                  <TableCell className="sticky left-0 bg-green-50 dark:bg-green-950 z-10 border border-muted-foreground/20 px-1 py-0.5 text-sm">
                     月別合計
                   </TableCell>
                   {MONTHS.map((month) => (
                     <Fragment key={`month-total-${month}`}>
-                      <TableCell className="text-right border border-muted-foreground/20 px-2 py-1">
+                      <TableCell className="text-right border border-muted-foreground/20 px-1 py-0.5 text-sm">
                         {calculateMonthTotal(month, "estimatedHours").toFixed(1)}h
                       </TableCell>
-                      <TableCell className="text-right border border-muted-foreground/20 px-2 py-1">
+                      <TableCell className="text-right border border-muted-foreground/20 px-1 py-0.5 text-sm">
                         {calculateMonthTotal(month, "actualHours").toFixed(1)}h
                       </TableCell>
                     </Fragment>
                   ))}
                   {/* 総合計 */}
-                  <TableCell className="text-right bg-green-100 dark:bg-green-900 border border-muted-foreground/20 px-2 py-1">
+                  <TableCell className="text-right bg-green-100 dark:bg-green-900 border border-muted-foreground/20 px-1 py-0.5 text-sm">
                     {calculateGrandTotal("estimatedHours").toFixed(1)}h
                   </TableCell>
-                  <TableCell className="text-right bg-green-100 dark:bg-green-900 border border-muted-foreground/20 px-2 py-1">
+                  <TableCell className="text-right bg-green-100 dark:bg-green-900 border border-muted-foreground/20 px-1 py-0.5 text-sm">
                     {calculateGrandTotal("actualHours").toFixed(1)}h
                   </TableCell>
                 </TableRow>
 
                 {/* 残業時間行 */}
                 <TableRow className="bg-orange-50 dark:bg-orange-950 font-bold">
-                  <TableCell className="sticky left-0 bg-orange-50 dark:bg-orange-950 z-10 border border-muted-foreground/20 px-2 py-1">
+                  <TableCell className="sticky left-0 bg-orange-50 dark:bg-orange-950 z-10 border border-muted-foreground/20 px-1 py-0.5 text-sm">
                     残業時間
                   </TableCell>
                   {MONTHS.map((month) => {
@@ -700,7 +750,7 @@ export default function KadminPage() {
                           overtime > 0
                             ? "text-orange-600 dark:text-orange-400"
                             : "text-muted-foreground"
-                        } border border-muted-foreground/20 px-2 py-1`}
+                        } border border-muted-foreground/20 px-1 py-0.5 text-sm`}
                       >
                         {overtime.toFixed(1)}h
                       </TableCell>
@@ -709,7 +759,7 @@ export default function KadminPage() {
                   {/* 年間残業時間合計 */}
                   <TableCell
                     colSpan={2}
-                    className="text-center bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400 border border-muted-foreground/20 px-2 py-1"
+                    className="text-center bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400 border border-muted-foreground/20 px-1 py-0.5 text-sm"
                   >
                     {calculateYearOvertimeHours().toFixed(1)}h
                   </TableCell>
@@ -717,20 +767,20 @@ export default function KadminPage() {
 
                 {/* 標準時間行（参考情報） */}
                 <TableRow className="bg-muted">
-                  <TableCell className="sticky left-0 bg-muted font-bold text-sm z-10 border border-muted-foreground/20 px-2 py-1">
+                  <TableCell className="sticky left-0 bg-muted font-bold text-sm z-10 border border-muted-foreground/20 px-1 py-0.5">
                     標準時間
                   </TableCell>
                   {MONTHS.map((month) => {
                     const workingDays = workingDaysData[month] || DEFAULT_WORKING_DAYS[month] || 20;
                     const standardHours = calculateStandardHours(workingDays);
                     return (
-                      <TableCell key={`${month}-std`} colSpan={2} className="text-center text-sm border border-muted-foreground/20 px-2 py-1">
+                      <TableCell key={`${month}-std`} colSpan={2} className="text-center text-xs border border-muted-foreground/20 px-1 py-0.5">
                         {standardHours.toFixed(1)}h ({workingDays}日)
                       </TableCell>
                     );
                   })}
                   {/* 年間合計 */}
-                  <TableCell colSpan={2} className="text-center text-sm bg-muted border border-muted-foreground/20 px-2 py-1">
+                  <TableCell colSpan={2} className="text-center text-xs bg-muted border border-muted-foreground/20 px-1 py-0.5">
                     {calculateYearStandardHours().toFixed(1)}h
                   </TableCell>
                 </TableRow>

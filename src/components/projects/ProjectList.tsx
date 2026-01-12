@@ -21,6 +21,8 @@ import {
   Edit2,
   X,
   Check,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import type { Project, Wbs } from "@/generated/prisma/client";
 import { WORK_TYPES, WORK_TYPE_LABELS, type WorkType } from "@/lib/workTypes";
@@ -41,6 +43,8 @@ interface ProjectListProps {
     workType: WorkType
   ) => void;
   onToggleActive: (projectId: string, isActive: boolean) => void;
+  onToggleKadminActive: (projectId: string, isKadminActive: boolean) => void;
+  onMoveProject: (projectId: string, direction: "up" | "down") => void;
 }
 
 export function ProjectList({
@@ -51,6 +55,8 @@ export function ProjectList({
   onDeleteProject,
   onUpdateProject,
   onToggleActive,
+  onToggleKadminActive,
+  onMoveProject,
 }: ProjectListProps) {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
     new Set()
@@ -134,9 +140,11 @@ export function ProjectList({
 
   return (
     <div className="space-y-4">
-      {projects.map((project) => {
+      {projects.map((project, index) => {
         const isExpanded = expandedProjects.has(project.id);
         const isEditing = editingProject === project.id;
+        const isFirst = index === 0;
+        const isLast = index === projects.length - 1;
 
         return (
           <Card key={project.id} className={project.isActive ? "" : "opacity-50 bg-muted/30"}>
@@ -254,6 +262,26 @@ export function ProjectList({
 
                 {!isEditing && (
                   <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="p-1 h-8 w-8"
+                        onClick={() => onMoveProject(project.id, "up")}
+                        disabled={isFirst}
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="p-1 h-8 w-8"
+                        onClick={() => onMoveProject(project.id, "down")}
+                        disabled={isLast}
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                    </div>
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={project.isActive}
@@ -263,6 +291,17 @@ export function ProjectList({
                       />
                       <span className="text-xs text-muted-foreground">
                         {project.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={project.isKadminActive}
+                        onCheckedChange={(checked) =>
+                          onToggleKadminActive(project.id, checked)
+                        }
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {project.isKadminActive ? "Kadmin Active" : "Kadmin Inactive"}
                       </span>
                     </div>
                     <Button

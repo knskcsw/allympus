@@ -18,7 +18,7 @@ export default function ProjectsPage() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
   const fetchProjects = useCallback(async () => {
-    const response = await fetch("/api/projects");
+    const response = await fetch("/api/projects?includeInactive=true");
     const data = await response.json();
     setProjects(data);
     setIsLoading(false);
@@ -99,6 +99,47 @@ export default function ProjectsPage() {
     fetchProjects();
   };
 
+  const handleToggleKadminActive = async (
+    projectId: string,
+    isKadminActive: boolean
+  ) => {
+    await fetch(`/api/projects/${projectId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isKadminActive }),
+    });
+    fetchProjects();
+  };
+
+  const updateProjectOrder = useCallback(
+    async (projectIds: string[]) => {
+      await fetch("/api/projects/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectIds }),
+      });
+      fetchProjects();
+    },
+    [fetchProjects]
+  );
+
+  const handleMoveProject = useCallback(
+    (projectId: string, direction: "up" | "down") => {
+      setProjects((prev) => {
+        const next = [...prev];
+        const currentIndex = next.findIndex((project) => project.id === projectId);
+        const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+        if (currentIndex < 0 || targetIndex < 0 || targetIndex >= next.length) {
+          return prev;
+        }
+        [next[currentIndex], next[targetIndex]] = [next[targetIndex], next[currentIndex]];
+        void updateProjectOrder(next.map((project) => project.id));
+        return next;
+      });
+    },
+    [updateProjectOrder]
+  );
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">Loading...</div>
@@ -141,6 +182,8 @@ export default function ProjectsPage() {
           onDeleteProject={handleDeleteProject}
           onUpdateProject={handleUpdateProject}
           onToggleActive={handleToggleActive}
+          onToggleKadminActive={handleToggleKadminActive}
+          onMoveProject={handleMoveProject}
         />
       )}
 
