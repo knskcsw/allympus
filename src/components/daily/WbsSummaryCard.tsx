@@ -89,7 +89,7 @@ export default function WbsSummaryCard({
                         {item.wbsName}
                       </span>
                       <span className="font-mono font-medium">
-                        {item.totalHours.toFixed(2)}h
+                        {item.totalHours.toFixed(2)}
                       </span>
                     </div>
                   ))}

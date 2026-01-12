@@ -563,11 +563,7 @@ export default function DailyPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[35%_65%]">
-            <Card
-              className={
-                isRoutineComplete ? "" : "border-amber-200 bg-amber-50/70"
-              }
-            >
+            <Card>
               <CardHeader
                 className={`flex flex-row items-center justify-between ${
                   isRoutineOpen ? "" : "py-2"
