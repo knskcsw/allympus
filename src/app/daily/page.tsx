@@ -208,6 +208,27 @@ export default function DailyPage() {
     }
   };
 
+  const handleTimeEntryCreate = async (entryData: any) => {
+    try {
+      const response = await fetch("/api/time-entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(entryData),
+      });
+
+      if (response.ok) {
+        fetchDailyData();
+      } else {
+        const error = await response.json();
+        console.error("Failed to create time entry:", error);
+        alert("稼働実績の作成に失敗しました");
+      }
+    } catch (error) {
+      console.error("Failed to create time entry:", error);
+      alert("稼働実績の作成に失敗しました");
+    }
+  };
+
   // Date change handler
   const handleDateChange = (newDate: Date) => {
     const today = startOfDay(new Date());
@@ -487,7 +508,7 @@ export default function DailyPage() {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[35%_65%]">
             <Card
               className={
                 isRoutineComplete ? "" : "border-amber-200 bg-amber-50/70"
@@ -641,7 +662,7 @@ export default function DailyPage() {
             </Card>
             <WbsSummaryCard summary={data.wbsSummary || []} />
           </div>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[35%_65%]">
             {/* Left: Tasks */}
             <div>
               <DailyTaskPanel
@@ -662,6 +683,8 @@ export default function DailyPage() {
                 projects={projects}
                 onUpdate={handleTimeEntryUpdate}
                 onDelete={handleTimeEntryDelete}
+                onCreate={handleTimeEntryCreate}
+                selectedDate={selectedDate}
               />
             </div>
           </div>

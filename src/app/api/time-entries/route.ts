@@ -33,17 +33,30 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { dailyTaskId, projectId, wbsId, note } = body;
+  const { dailyTaskId, projectId, wbsId, note, startTime, endTime } = body;
 
-  const activeEntry = await prisma.timeEntry.findFirst({
-    where: { endTime: null },
-  });
+  // startTime/endTime指定時はアクティブエントリチェックをスキップ
+  const isManualEntry = startTime !== undefined;
 
-  if (activeEntry) {
-    return NextResponse.json(
-      { error: "There is already an active time entry" },
-      { status: 400 }
-    );
+  if (!isManualEntry) {
+    const activeEntry = await prisma.timeEntry.findFirst({
+      where: { endTime: null },
+    });
+
+    if (activeEntry) {
+      return NextResponse.json(
+        { error: "There is already an active time entry" },
+        { status: 400 }
+      );
+    }
+  }
+
+  // duration計算（endTimeが指定されている場合）
+  let duration = null;
+  if (startTime && endTime) {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    duration = Math.floor((end.getTime() - start.getTime()) / 1000);
   }
 
   const timeEntry = await prisma.timeEntry.create({
@@ -51,7 +64,9 @@ export async function POST(request: NextRequest) {
       dailyTaskId: dailyTaskId || null,
       projectId: projectId || null,
       wbsId: wbsId || null,
-      startTime: new Date(),
+      startTime: startTime ? new Date(startTime) : new Date(),
+      endTime: endTime ? new Date(endTime) : null,
+      duration,
       note,
     },
     include: {

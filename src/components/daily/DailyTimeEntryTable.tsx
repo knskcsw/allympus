@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -55,6 +55,8 @@ interface DailyTimeEntryTableProps {
   }>;
   onUpdate: (id: string, data: any) => void;
   onDelete: (id: string) => void;
+  onCreate: (data: any) => void;
+  selectedDate: Date;
 }
 
 export default function DailyTimeEntryTable({
@@ -63,6 +65,8 @@ export default function DailyTimeEntryTable({
   projects,
   onUpdate,
   onDelete,
+  onCreate,
+  selectedDate,
 }: DailyTimeEntryTableProps) {
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [formData, setFormData] = useState({
@@ -72,6 +76,53 @@ export default function DailyTimeEntryTable({
     startTime: "",
     endTime: "",
   });
+  const [createFormData, setCreateFormData] = useState({
+    dailyTaskId: "",
+    projectId: "",
+    wbsId: "",
+    startTime: "",
+    endTime: "",
+  });
+  const [isCreating, setIsCreating] = useState(false);
+
+  // 前の実績の終了時間を開始時間のデフォルト値にセット
+  useEffect(() => {
+    if (entries.length > 0) {
+      const latestEntry = entries[0]; // startTime降順ソート済み
+      if (latestEntry.endTime) {
+        const endTime = format(new Date(latestEntry.endTime), "HH:mm");
+        setCreateFormData(prev => ({
+          ...prev,
+          startTime: endTime,
+        }));
+      } else {
+        // endTimeがnullの場合は現在時刻
+        const now = format(new Date(), "HH:mm");
+        setCreateFormData(prev => ({
+          ...prev,
+          startTime: now,
+        }));
+      }
+    } else {
+      // エントリがない場合は現在時刻
+      const now = format(new Date(), "HH:mm");
+      setCreateFormData(prev => ({
+        ...prev,
+        startTime: now,
+      }));
+    }
+  }, [entries]);
+
+  // selectedDate変更時にフォームリセット
+  useEffect(() => {
+    setCreateFormData({
+      dailyTaskId: "",
+      projectId: "",
+      wbsId: "",
+      startTime: "",
+      endTime: "",
+    });
+  }, [selectedDate]);
 
   const handleEdit = (entry: TimeEntry) => {
     setEditingEntry(entry);
@@ -121,9 +172,96 @@ export default function DailyTimeEntryTable({
     setEditingEntry(null);
   };
 
+  const handleCreateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isCreating) return; // 二重送信防止
+
+    // バリデーション
+    if (!createFormData.dailyTaskId || createFormData.dailyTaskId === "none") {
+      alert("タスクを選択してください");
+      return;
+    }
+
+    if (!createFormData.startTime) {
+      alert("開始時間を入力してください");
+      return;
+    }
+
+    if (!createFormData.endTime) {
+      alert("終了時間を入力してください");
+      return;
+    }
+
+    // 時間の大小チェック
+    const [startHours, startMinutes] = createFormData.startTime.split(":").map(Number);
+    const [endHours, endMinutes] = createFormData.endTime.split(":").map(Number);
+
+    const startMinutesTotal = startHours * 60 + startMinutes;
+    const endMinutesTotal = endHours * 60 + endMinutes;
+
+    if (startMinutesTotal >= endMinutesTotal) {
+      alert("終了時間は開始時間より後にしてください");
+      return;
+    }
+
+    // DateTimeの構築（selectedDateの日付 + 入力された時刻）
+    const startDate = new Date(selectedDate);
+    startDate.setHours(startHours, startMinutes, 0, 0);
+
+    const endDate = new Date(selectedDate);
+    endDate.setHours(endHours, endMinutes, 0, 0);
+
+    setIsCreating(true);
+    try {
+      // API呼び出し
+      onCreate({
+        dailyTaskId: createFormData.dailyTaskId,
+        projectId: createFormData.projectId || null,
+        wbsId: createFormData.wbsId || null,
+        startTime: startDate.toISOString(),
+        endTime: endDate.toISOString(),
+      });
+
+      // フォームリセット（タスク/プロジェクト/WBSはクリア、時間は次の実績のために維持）
+      setCreateFormData({
+        dailyTaskId: "",
+        projectId: "",
+        wbsId: "",
+        startTime: createFormData.endTime, // 前の終了時間を次の開始時間に
+        endTime: "",
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   // Get WBS list for selected project
   const selectedProject = projects.find((p) => p.id === formData.projectId);
   const wbsList = selectedProject?.wbsList || [];
+
+  // Get WBS list for selected project (create form)
+  const selectedCreateProject = projects.find((p) => p.id === createFormData.projectId);
+  const createWbsList = selectedCreateProject?.wbsList || [];
+
+  // プロジェクト×WBSの統合リストを作成
+  const projectWbsOptions = projects.flatMap(project =>
+    project.wbsList.map(wbs => ({
+      projectId: project.id,
+      wbsId: wbs.id,
+      value: `${project.id}|||${wbs.id}`,
+      label: `${project.code}■${wbs.name}`,
+    }))
+  );
+
+  // 編集フォーム用の統合リスト
+  const editProjectWbsOptions = projects.flatMap(project =>
+    project.wbsList.map(wbs => ({
+      projectId: project.id,
+      wbsId: wbs.id,
+      value: `${project.id}|||${wbs.id}`,
+      label: `${project.code}■${wbs.name}`,
+    }))
+  );
 
   // Format duration to decimal hours (e.g., 1.5)
   const formatDurationHours = (seconds: number | null): string => {
@@ -148,11 +286,11 @@ export default function DailyTimeEntryTable({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>タスク名</TableHead>
-                <TableHead>プロジェクト・WBS</TableHead>
-                <TableHead className="text-right">時間帯</TableHead>
-                <TableHead className="text-right">稼働時間</TableHead>
-                <TableHead className="text-right">操作</TableHead>
+                <TableHead>Task</TableHead>
+                <TableHead>Project</TableHead>
+                <TableHead className="text-right">Time</TableHead>
+                <TableHead className="text-right">Duration</TableHead>
+                <TableHead className="text-right">Edit</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -208,6 +346,102 @@ export default function DailyTimeEntryTable({
               )}
             </TableBody>
           </Table>
+
+          {/* インライン入力フォーム */}
+          <form onSubmit={handleCreateSubmit} className="mt-4 border-t pt-4">
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <Select
+                  value={createFormData.dailyTaskId || "none"}
+                  onValueChange={(value) =>
+                    setCreateFormData({
+                      ...createFormData,
+                      dailyTaskId: value === "none" ? "" : value,
+                    })
+                  }
+                  required
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Task" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" disabled>
+                      Select task
+                    </SelectItem>
+                    {dailyTasks.map((task) => (
+                      <SelectItem key={task.id} value={task.id}>
+                        {task.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex-1">
+                <Select
+                  value={createFormData.projectId && createFormData.wbsId ? `${createFormData.projectId}|||${createFormData.wbsId}` : "none"}
+                  onValueChange={(value) => {
+                    if (value === "none") {
+                      setCreateFormData({
+                        ...createFormData,
+                        projectId: "",
+                        wbsId: "",
+                      });
+                    } else {
+                      const [projectId, wbsId] = value.split("|||");
+                      setCreateFormData({
+                        ...createFormData,
+                        projectId,
+                        wbsId,
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No project</SelectItem>
+                    {projectWbsOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="w-32">
+                <Input
+                  type="time"
+                  value={createFormData.startTime}
+                  onChange={(e) =>
+                    setCreateFormData({ ...createFormData, startTime: e.target.value })
+                  }
+                  required
+                  className="h-9"
+                  placeholder="Start"
+                />
+              </div>
+
+              <div className="w-32">
+                <Input
+                  type="time"
+                  value={createFormData.endTime}
+                  onChange={(e) =>
+                    setCreateFormData({ ...createFormData, endTime: e.target.value })
+                  }
+                  required
+                  className="h-9"
+                  placeholder="End"
+                />
+              </div>
+
+              <Button type="submit" size="sm" disabled={isCreating} className="h-9">
+                {isCreating ? "..." : "Add"}
+              </Button>
+            </div>
+          </form>
         </CardContent>
       </Card>
 
@@ -254,49 +488,32 @@ export default function DailyTimeEntryTable({
             <div>
               <Label htmlFor="project">プロジェクト</Label>
               <Select
-                value={formData.projectId || "none"}
-                onValueChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    projectId: value === "none" ? "" : value,
-                    wbsId: "", // Reset WBS when project changes
-                  })
-                }
+                value={formData.projectId && formData.wbsId ? `${formData.projectId}|||${formData.wbsId}` : "none"}
+                onValueChange={(value) => {
+                  if (value === "none") {
+                    setFormData({
+                      ...formData,
+                      projectId: "",
+                      wbsId: "",
+                    });
+                  } else {
+                    const [projectId, wbsId] = value.split("|||");
+                    setFormData({
+                      ...formData,
+                      projectId,
+                      wbsId,
+                    });
+                  }
+                }}
               >
                 <SelectTrigger id="project">
                   <SelectValue placeholder="プロジェクトを選択" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">プロジェクトなし</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.code} - {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="wbs">WBS</Label>
-              <Select
-                value={formData.wbsId || "none"}
-                onValueChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    wbsId: value === "none" ? "" : value,
-                  })
-                }
-                disabled={!formData.projectId}
-              >
-                <SelectTrigger id="wbs">
-                  <SelectValue placeholder="WBSを選択" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">WBSなし</SelectItem>
-                  {wbsList.map((wbs) => (
-                    <SelectItem key={wbs.id} value={wbs.id}>
-                      {wbs.name}
+                  {editProjectWbsOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
