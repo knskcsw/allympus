@@ -30,6 +30,8 @@ type SalaryEntry = {
   bonus: number;
 };
 
+type NumericSalaryKey = Exclude<keyof SalaryEntry, "id">;
+
 const currencyFormatter = new Intl.NumberFormat("ja-JP", {
   style: "currency",
   currency: "JPY",
@@ -37,7 +39,7 @@ const currencyFormatter = new Intl.NumberFormat("ja-JP", {
 });
 
 const deductionLabels: Array<{
-  key: keyof SalaryEntry;
+  key: NumericSalaryKey;
   label: string;
   color: string;
 }> = [
@@ -51,7 +53,7 @@ const deductionLabels: Array<{
 
 const formatCurrency = (value: number) => currencyFormatter.format(Math.round(value));
 
-const sumBy = (items: SalaryEntry[], key: keyof SalaryEntry) =>
+const sumBy = (items: SalaryEntry[], key: NumericSalaryKey) =>
   items.reduce((total, item) => total + item[key], 0);
 
 const getTotalDeductions = (row: SalaryEntry) =>

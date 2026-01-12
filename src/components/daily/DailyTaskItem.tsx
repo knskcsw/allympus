@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
 
-interface DailyTask {
+export interface DailyTask {
   id: string;
   date: Date;
   title: string;
@@ -14,6 +14,8 @@ interface DailyTask {
   status: string;
   priority: string;
   estimatedMinutes: number | null;
+  sortOrder?: number;
+  createdAt?: string;
   totalTimeSpent?: number;
 }
 

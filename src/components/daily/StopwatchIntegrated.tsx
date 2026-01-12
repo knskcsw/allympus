@@ -24,6 +24,7 @@ interface Project {
   code: string;
   name: string;
   abbreviation: string | null;
+  wbsList?: Wbs[];
 }
 
 interface Wbs {

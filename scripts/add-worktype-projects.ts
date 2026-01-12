@@ -1,18 +1,19 @@
 import { prisma } from "../src/lib/db";
+import { WorkType } from "../src/generated/prisma/client";
 
 const projects = [
   {
     code: "T2-001",
     name: "T2営業支援",
     abbreviation: "T2営業",
-    workType: "SE_TRANSFER",
+    workType: WorkType.SE_TRANSFER,
     wbs: ["営業資料作成", "顧客対応", "提案準備"],
   },
   {
     code: "IND-001",
     name: "間接業務",
     abbreviation: "間接",
-    workType: "INDIRECT",
+    workType: WorkType.INDIRECT,
     wbs: ["社内ミーティング", "業務改善", "育成・教育"],
   },
 ];

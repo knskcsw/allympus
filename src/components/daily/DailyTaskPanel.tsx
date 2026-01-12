@@ -20,20 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
-import { DailyTaskItem } from "./DailyTaskItem";
-
-interface DailyTask {
-  id: string;
-  date: Date;
-  title: string;
-  description: string | null;
-  status: string;
-  priority: string;
-  estimatedMinutes: number | null;
-  sortOrder: number;
-  createdAt?: string;
-  totalTimeSpent?: number;
-}
+import { DailyTaskItem, type DailyTask } from "./DailyTaskItem";
 
 interface DailyTaskPanelProps {
   date: Date;
