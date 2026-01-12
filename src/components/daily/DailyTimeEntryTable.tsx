@@ -372,9 +372,9 @@ export default function DailyTimeEntryTable({
                     <TableCell className="text-left">
                       {entry.project && entry.wbs
                         ? `${entry.project.abbreviation || entry.project.code}■${entry.wbs.name}`
-                        : entry.project
+                      : entry.project
                         ? `${entry.project.code} - ${entry.project.name}`
-                        : "-"}
+                        : "集計なし"}
                     </TableCell>
                     <TableCell className="text-left font-mono">
                       <span
@@ -524,7 +524,7 @@ export default function DailyTimeEntryTable({
                     <SelectValue className="text-left" placeholder="Project" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No project</SelectItem>
+                    <SelectItem value="none">集計なし</SelectItem>
                     {projectWbsOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
@@ -666,7 +666,7 @@ export default function DailyTimeEntryTable({
                   <SelectValue placeholder="プロジェクトを選択" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">プロジェクトなし</SelectItem>
+                  <SelectItem value="none">集計なし</SelectItem>
                   {editProjectWbsOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}

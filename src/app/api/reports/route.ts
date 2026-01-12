@@ -131,6 +131,9 @@ export async function GET(request: NextRequest) {
 
   const wbsSummary = timeEntries.reduce(
     (acc, entry) => {
+      if (!entry.projectId) {
+        return acc;
+      }
       const projectName = entry.project?.name || "No Project";
       const wbsName = entry.wbs?.name || "No WBS";
       const key = `${projectName} - ${wbsName}`;

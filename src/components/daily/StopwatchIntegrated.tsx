@@ -204,7 +204,7 @@ export default function StopwatchIntegrated({
                 <SelectValue placeholder="プロジェクト・WBSを選択" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">なし</SelectItem>
+                <SelectItem value="none">集計なし</SelectItem>
                 {projects.map((project) =>
                   project.wbsList && project.wbsList.length > 0 ? (
                     project.wbsList.map((wbs: Wbs) => (
