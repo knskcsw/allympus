@@ -6,6 +6,7 @@ export async function GET() {
     where: { endTime: null },
     include: {
       dailyTask: true,
+      routineTask: true,
       project: true,
       wbs: true,
     },

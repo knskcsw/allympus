@@ -11,6 +11,7 @@ export async function GET(
     where: { id },
     include: {
       dailyTask: true,
+      routineTask: true,
       project: true,
       wbs: true,
     },
@@ -32,11 +33,38 @@ export async function PUT(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { dailyTaskId, projectId, wbsId, startTime, endTime, note, stop } = body;
+  const {
+    dailyTaskId,
+    routineTaskId,
+    projectId,
+    wbsId,
+    startTime,
+    endTime,
+    note,
+    stop,
+  } = body;
+  const normalizedDailyTaskId =
+    dailyTaskId === "" ? null : dailyTaskId === null ? null : dailyTaskId;
+  const normalizedRoutineTaskId =
+    routineTaskId === "" ? null : routineTaskId === null ? null : routineTaskId;
+
+  if (normalizedDailyTaskId && normalizedRoutineTaskId) {
+    return NextResponse.json(
+      { error: "Only one task type can be selected" },
+      { status: 400 }
+    );
+  }
 
   const updateData: Record<string, unknown> = {};
 
-  if (dailyTaskId !== undefined) updateData.dailyTaskId = dailyTaskId;
+  if (dailyTaskId !== undefined) {
+    updateData.dailyTaskId = normalizedDailyTaskId;
+    if (normalizedDailyTaskId) updateData.routineTaskId = null;
+  }
+  if (routineTaskId !== undefined) {
+    updateData.routineTaskId = normalizedRoutineTaskId;
+    if (normalizedRoutineTaskId) updateData.dailyTaskId = null;
+  }
   if (projectId !== undefined) updateData.projectId = projectId;
   if (wbsId !== undefined) updateData.wbsId = wbsId;
   if (note !== undefined) updateData.note = note;
@@ -75,6 +103,7 @@ export async function PUT(
     data: updateData,
     include: {
       dailyTask: true,
+      routineTask: true,
       project: true,
       wbs: true,
     },

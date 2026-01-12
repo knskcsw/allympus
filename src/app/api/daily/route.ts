@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const dayEnd = endOfDay(date);
 
     // Fetch all data in parallel
-    const [attendance, dailyTasks, timeEntries, morningRoutine] =
+    const [attendance, dailyTasks, timeEntries, morningRoutine, routineTasks] =
       await Promise.all([
         // 1. Attendance for the date
         prisma.attendance.findFirst({
@@ -65,6 +65,12 @@ export async function GET(request: NextRequest) {
                 title: true,
               },
             },
+            routineTask: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
             project: {
               select: {
                 id: true,
@@ -89,6 +95,9 @@ export async function GET(request: NextRequest) {
             },
           },
           orderBy: { sortOrder: "asc" },
+        }),
+        prisma.routineTask.findMany({
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
         }),
       ]);
 
@@ -146,6 +155,7 @@ export async function GET(request: NextRequest) {
       attendance,
       morningRoutine,
       dailyTasks: tasksWithTotalTime,
+      routineTasks,
       timeEntries,
       wbsSummary,
     });
