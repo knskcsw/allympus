@@ -5,7 +5,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
-import { cn } from "@/lib/utils";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,6 +23,7 @@ export default function RootLayout({
 }>) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(256); // Default width
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
     // Load initial state from localStorage
@@ -49,6 +49,52 @@ export default function RootLayout({
     };
   }, []);
 
+  useEffect(() => {
+    const storedTheme = localStorage.getItem("theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const initialTheme =
+      storedTheme === "dark" || storedTheme === "light"
+        ? storedTheme
+        : prefersDark
+          ? "dark"
+          : "light";
+
+    setTheme(initialTheme);
+    document.documentElement.classList.toggle("dark", initialTheme === "dark");
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (event: MediaQueryListEvent) => {
+      if (!localStorage.getItem("theme")) {
+        const nextTheme = event.matches ? "dark" : "light";
+        setTheme(nextTheme);
+        document.documentElement.classList.toggle("dark", nextTheme === "dark");
+      }
+    };
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handleChange);
+    } else {
+      mediaQuery.addListener(handleChange);
+    }
+
+    return () => {
+      if (mediaQuery.addEventListener) {
+        mediaQuery.removeEventListener("change", handleChange);
+      } else {
+        mediaQuery.removeListener(handleChange);
+      }
+    };
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme((current) => {
+      const nextTheme = current === "dark" ? "light" : "dark";
+      localStorage.setItem("theme", nextTheme);
+      document.documentElement.classList.toggle("dark", nextTheme === "dark");
+      return nextTheme;
+    });
+  };
+
   return (
     <html lang="ja">
       <head>
@@ -59,7 +105,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Sidebar />
-        <Header sidebarOffset={isSidebarCollapsed ? 64 : sidebarWidth} />
+        <Header
+          sidebarOffset={isSidebarCollapsed ? 64 : sidebarWidth}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
         <main
           className="mt-16 min-h-[calc(100vh-4rem)] p-6 transition-all duration-300"
           style={{
