@@ -113,6 +113,17 @@ export async function POST(request: NextRequest) {
 
     // トランザクション処理
     await prisma.$transaction(async (tx) => {
+      const lastSortOrder = await tx.project.findFirst({
+        orderBy: { sortOrder: "desc" },
+        select: { sortOrder: true },
+      });
+      let nextSortOrder = (lastSortOrder?.sortOrder ?? 0) + 1;
+      const lastKadminSortOrder = await tx.project.findFirst({
+        orderBy: { kadminSortOrder: "desc" },
+        select: { kadminSortOrder: true },
+      });
+      let nextKadminSortOrder = (lastKadminSortOrder?.kadminSortOrder ?? 0) + 1;
+
       for (const [projectCode, rows] of Object.entries(projectGroups)) {
         try {
           // バリデーション
@@ -159,6 +170,9 @@ export async function POST(request: NextRequest) {
               startDate,
               endDate,
               isActive: true,
+              isKadminActive: true,
+              sortOrder: nextSortOrder,
+              kadminSortOrder: nextKadminSortOrder,
             },
           });
 
@@ -166,6 +180,8 @@ export async function POST(request: NextRequest) {
             result.projectsUpdated++;
           } else {
             result.projectsCreated++;
+            nextSortOrder += 1;
+            nextKadminSortOrder += 1;
           }
 
           // WBSの作成（既存のWBSは削除して再作成）
