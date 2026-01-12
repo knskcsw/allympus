@@ -43,19 +43,24 @@ model MorningRoutineItem {
 }
 
 model Project {
-  id           String   @id @default(cuid())
-  code         String   @unique
+  id           String    @id @default(cuid())
+  code         String    @unique
   name         String
   abbreviation String?
-  workType     WorkType @default(IN_PROGRESS)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  workType     WorkType  @default(IN_PROGRESS)
+  isActive     Boolean   @default(true)
+  member       String?
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   wbsList          Wbs[]
   timeEntries      TimeEntry[]
   projectWorkHours ProjectWorkHours[]
   evmFixedTasks    EvmFixedTask[]
 
+  @@index([isActive])
   @@map("projects")
 }
 
@@ -64,11 +69,15 @@ model Wbs {
   projectId String
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name      String
+  wbsNo     String?
+  wbsClass  String?
+  sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   timeEntries TimeEntry[]
 
+  @@index([projectId, sortOrder])
   @@map("wbs")
 }
 

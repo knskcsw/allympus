@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -39,6 +40,7 @@ interface ProjectListProps {
     abbreviation: string | undefined,
     workType: WorkType
   ) => void;
+  onToggleActive: (projectId: string, isActive: boolean) => void;
 }
 
 export function ProjectList({
@@ -48,6 +50,7 @@ export function ProjectList({
   onUpdateWbs,
   onDeleteProject,
   onUpdateProject,
+  onToggleActive,
 }: ProjectListProps) {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
     new Set()
@@ -136,7 +139,7 @@ export function ProjectList({
         const isEditing = editingProject === project.id;
 
         return (
-          <Card key={project.id}>
+          <Card key={project.id} className={project.isActive ? "" : "opacity-50 bg-muted/30"}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 flex-1">
@@ -250,7 +253,18 @@ export function ProjectList({
                 </div>
 
                 {!isEditing && (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={project.isActive}
+                        onCheckedChange={(checked) =>
+                          onToggleActive(project.id, checked)
+                        }
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {project.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </div>
                     <Button
                       variant="ghost"
                       size="sm"

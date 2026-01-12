@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const includeInactive = searchParams.get("includeInactive") === "true";
+
   const projects = await prisma.project.findMany({
+    where: includeInactive ? {} : { isActive: true },
     orderBy: { createdAt: "desc" },
     include: {
       wbsList: {
-        orderBy: { createdAt: "asc" },
+        orderBy: { sortOrder: "asc" },
       },
     },
   });

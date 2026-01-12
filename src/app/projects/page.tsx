@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ProjectList } from "@/components/projects/ProjectList";
 import { ProjectForm } from "@/components/projects/ProjectForm";
-import { Plus, FolderKanban } from "lucide-react";
+import { ProjectImportDialog } from "@/components/projects/ProjectImportDialog";
+import { Plus, FolderKanban, Upload } from "lucide-react";
 import type { Project, Wbs } from "@/generated/prisma/client";
 import type { WorkType } from "@/lib/workTypes";
 
@@ -14,6 +15,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectWithWbs[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
   const fetchProjects = useCallback(async () => {
     const response = await fetch("/api/projects");
@@ -88,6 +90,15 @@ export default function ProjectsPage() {
     fetchProjects();
   };
 
+  const handleToggleActive = async (projectId: string, isActive: boolean) => {
+    await fetch(`/api/projects/${projectId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive }),
+    });
+    fetchProjects();
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">Loading...</div>
@@ -103,10 +114,16 @@ export default function ProjectsPage() {
           </div>
           <h1 className="text-3xl font-bold">Projects</h1>
         </div>
-        <Button onClick={() => setIsFormOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Project
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setIsImportDialogOpen(true)} variant="outline">
+            <Upload className="mr-2 h-4 w-4" />
+            CSV Import
+          </Button>
+          <Button onClick={() => setIsFormOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Project
+          </Button>
+        </div>
       </div>
 
       {projects.length === 0 ? (
@@ -123,6 +140,7 @@ export default function ProjectsPage() {
           onUpdateWbs={handleUpdateWbs}
           onDeleteProject={handleDeleteProject}
           onUpdateProject={handleUpdateProject}
+          onToggleActive={handleToggleActive}
         />
       )}
 
@@ -130,6 +148,12 @@ export default function ProjectsPage() {
         open={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleCreate}
+      />
+
+      <ProjectImportDialog
+        open={isImportDialogOpen}
+        onOpenChange={setIsImportDialogOpen}
+        onComplete={fetchProjects}
       />
     </div>
   );
