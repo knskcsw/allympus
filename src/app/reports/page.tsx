@@ -101,7 +101,12 @@ export default function ReportsPage() {
       `/api/reports/worktype?year=${year}&month=${month}`
     );
     const data = await response.json();
-    setWorkTypeReport(data);
+    if (data.error) {
+      console.error("Failed to fetch work type report:", data.error);
+      setWorkTypeReport(null);
+    } else {
+      setWorkTypeReport(data);
+    }
     setIsWorkTypeLoading(false);
   }, [year, month]);
 
@@ -126,7 +131,7 @@ export default function ReportsPage() {
   };
 
   const workTypeCharts = useMemo(() => {
-    if (!workTypeReport) return null;
+    if (!workTypeReport || !workTypeReport.days || !workTypeReport.types) return null;
     const { days, types } = workTypeReport;
     const totalPvDaily = days.map((_, index) =>
       types.reduce((acc, type) => acc + (type.pvDaily[index] || 0), 0)
