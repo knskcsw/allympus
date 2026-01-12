@@ -639,15 +639,19 @@ export default function DailyPage() {
                                 }}
                               />
                             ) : (
-                              <span
-                                className={
+                              <button
+                                type="button"
+                                className={`text-left ${
                                   item.completed
                                     ? "text-muted-foreground line-through"
                                     : ""
+                                }`}
+                                onClick={() =>
+                                  handleRoutineToggle(item.id, !item.completed)
                                 }
                               >
                                 {item.title}
-                              </span>
+                              </button>
                             )}
                             <div className="ml-auto flex items-center gap-2">
                               {isEditing ? (

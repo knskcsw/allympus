@@ -143,7 +143,7 @@ export function Sidebar() {
           "flex items-center gap-2 font-semibold",
           isCollapsed && "justify-center w-full"
         )}>
-          <OlympusIcon className="h-6 w-6 flex-shrink-0 text-black" />
+          <OlympusIcon className="h-6 w-6 flex-shrink-0 text-foreground" />
           {!isCollapsed && <span>Allympus</span>}
         </Link>
         {!isCollapsed && (
