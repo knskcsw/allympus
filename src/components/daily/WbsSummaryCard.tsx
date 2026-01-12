@@ -15,11 +15,19 @@ interface WbsSummary {
 
 interface WbsSummaryCardProps {
   summary: WbsSummary[];
+  totalWorkingHours?: number | null;
 }
 
-export default function WbsSummaryCard({ summary }: WbsSummaryCardProps) {
+export default function WbsSummaryCard({
+  summary,
+  totalWorkingHours = null,
+}: WbsSummaryCardProps) {
   // Calculate total hours across all entries
   const totalHours = summary.reduce((acc, item) => acc + item.totalHours, 0);
+  const hasWorkingHours =
+    typeof totalWorkingHours === "number" && Number.isFinite(totalWorkingHours);
+  const hasMismatch =
+    hasWorkingHours && Math.abs(totalHours - totalWorkingHours) > 0.01;
 
   // Group by project
   const groupedByProject = summary.reduce((acc, item) => {
@@ -42,9 +50,16 @@ export default function WbsSummaryCard({ summary }: WbsSummaryCardProps) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>WBS集計</CardTitle>
-          <Badge variant="outline" className="text-base font-semibold">
-            合計: {totalHours.toFixed(2)}h
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="outline"
+              className={`text-base font-semibold${
+                hasMismatch ? " border-destructive text-destructive" : ""
+              }`}
+            >
+              合計: {totalHours.toFixed(2)}h
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent>

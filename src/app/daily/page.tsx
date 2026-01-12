@@ -38,6 +38,17 @@ export default function DailyPage() {
   const [isRoutineSubmitting, setIsRoutineSubmitting] = useState(false);
   const [isRoutineOpen, setIsRoutineOpen] = useState(true);
 
+  const totalWorkingHours = (() => {
+    if (!data?.attendance?.clockIn) return null;
+    const start = new Date(data.attendance.clockIn);
+    const end = data.attendance.clockOut
+      ? new Date(data.attendance.clockOut)
+      : new Date();
+    const breakMinutes = data.attendance.breakMinutes || 0;
+    const totalMinutes = (end.getTime() - start.getTime()) / (1000 * 60) - breakMinutes;
+    return totalMinutes / 60;
+  })();
+
   // Fetch daily data
   const fetchDailyData = useCallback(async () => {
     setIsLoading(true);
@@ -385,6 +396,7 @@ export default function DailyPage() {
     }
   };
 
+
   const today = startOfDay(new Date());
   const selectedStart = startOfDay(selectedDate);
   const isFutureDate = selectedStart > today;
@@ -449,10 +461,11 @@ export default function DailyPage() {
         maxDate={today}
         onClockOut={handleClockOut}
         showClockOut={canClockOut}
+        onAttendanceUpdated={fetchDailyData}
       />
 
       {isFutureDate ? (
-        <Card>
+            <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
             未来の日付は表示できません
           </CardContent>
@@ -660,7 +673,10 @@ export default function DailyPage() {
                 </CardContent>
               )}
             </Card>
-            <WbsSummaryCard summary={data.wbsSummary || []} />
+            <WbsSummaryCard
+              summary={data.wbsSummary || []}
+              totalWorkingHours={totalWorkingHours}
+            />
           </div>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[35%_65%]">
             {/* Left: Tasks */}
@@ -685,6 +701,8 @@ export default function DailyPage() {
                 onDelete={handleTimeEntryDelete}
                 onCreate={handleTimeEntryCreate}
                 selectedDate={selectedDate}
+                attendanceClockIn={data.attendance?.clockIn ?? null}
+                attendanceClockOut={data.attendance?.clockOut ?? null}
               />
             </div>
           </div>
