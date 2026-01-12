@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MonthlyCalendar } from "@/components/calendar/MonthlyCalendar";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
-import type { Attendance } from "@/generated/prisma/client";
+import type { Attendance, Holiday } from "@/generated/prisma/client";
 
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [attendances, setAttendances] = useState<Attendance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [isHolidayLoading, setIsHolidayLoading] = useState(true);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
@@ -27,9 +29,37 @@ export default function CalendarPage() {
     setIsLoading(false);
   }, [year, month]);
 
+  const getFiscalYear = (targetYear: number, targetMonth: number) => {
+    const fiscalYear = targetMonth >= 4 ? targetYear : targetYear - 1;
+    const suffix = String(fiscalYear % 100).padStart(2, "0");
+    return `FY${suffix}`;
+  };
+
+  const fetchHolidays = useCallback(async () => {
+    setIsHolidayLoading(true);
+    try {
+      const fiscalYear = getFiscalYear(year, month);
+      const response = await fetch(`/api/holidays?fiscalYear=${fiscalYear}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch holidays");
+      }
+      const data = await response.json();
+      setHolidays(data);
+    } catch (error) {
+      console.error("Failed to fetch holidays:", error);
+      setHolidays([]);
+    } finally {
+      setIsHolidayLoading(false);
+    }
+  }, [month, year]);
+
   useEffect(() => {
     fetchAttendances();
   }, [fetchAttendances]);
+
+  useEffect(() => {
+    fetchHolidays();
+  }, [fetchHolidays]);
 
   const handlePrevMonth = () => {
     setCurrentDate(subMonths(currentDate, 1));
@@ -52,6 +82,8 @@ export default function CalendarPage() {
     }
     return acc;
   }, 0);
+
+  const isCalendarLoading = isLoading || isHolidayLoading;
 
   return (
     <div className="space-y-6">
@@ -83,7 +115,7 @@ export default function CalendarPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {isCalendarLoading ? (
               <div className="flex items-center justify-center h-64">
                 Loading...
               </div>
@@ -92,6 +124,7 @@ export default function CalendarPage() {
                 year={year}
                 month={month}
                 attendances={attendances}
+                holidays={holidays}
               />
             )}
           </CardContent>
