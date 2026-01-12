@@ -158,9 +158,6 @@ export default function SleepPage() {
           </div>
           <div>
             <h1 className="text-3xl font-bold">Sleep</h1>
-            <p className="text-sm text-muted-foreground">
-              Monthly sleep insights from attendance logs
-            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
