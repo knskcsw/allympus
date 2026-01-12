@@ -59,6 +59,8 @@ interface DailyTimeEntryTableProps {
   onDelete: (id: string) => void;
   onCreate: (data: any) => void;
   selectedDate: Date;
+  attendanceClockIn?: Date | string | null;
+  attendanceClockOut?: Date | string | null;
 }
 
 export default function DailyTimeEntryTable({
@@ -70,6 +72,8 @@ export default function DailyTimeEntryTable({
   onDelete,
   onCreate,
   selectedDate,
+  attendanceClockIn = null,
+  attendanceClockOut = null,
 }: DailyTimeEntryTableProps) {
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [formData, setFormData] = useState({
@@ -93,12 +97,18 @@ export default function DailyTimeEntryTable({
   // 前の実績の終了時間を開始時間のデフォルト値にセット
   useEffect(() => {
     if (entries.length > 0) {
-      const latestEntry = entries[0]; // startTime降順ソート済み
-      if (latestEntry.endTime) {
-        const endTime = format(new Date(latestEntry.endTime), "HH:mm");
+      const lastEntry = entries[entries.length - 1];
+      if (lastEntry.endTime) {
+        const endTime = format(new Date(lastEntry.endTime), "HH:mm");
         setCreateFormData(prev => ({
           ...prev,
           startTime: endTime,
+        }));
+      } else if (lastEntry.startTime) {
+        const lastStart = format(new Date(lastEntry.startTime), "HH:mm");
+        setCreateFormData(prev => ({
+          ...prev,
+          startTime: lastStart,
         }));
       } else {
         // endTimeがnullの場合は現在時刻
@@ -289,12 +299,43 @@ export default function DailyTimeEntryTable({
     return (seconds / 3600).toFixed(2);
   };
 
-  // Format time range
-  const formatTimeRange = (entry: TimeEntry): string => {
-    const start = format(new Date(entry.startTime), "HH:mm");
-    const end = entry.endTime ? format(new Date(entry.endTime), "HH:mm") : "進行中";
-    return `${start} - ${end}`;
+  const formatTime = (value: Date | string | null): string => {
+    if (!value) return "";
+    return format(new Date(value), "HH:mm");
   };
+
+  const timeWarnings = entries.reduce<Record<string, { start: boolean; end: boolean }>>(
+    (acc, entry, index) => {
+      let startMismatch = false;
+      let endMismatch = false;
+      const startTime = formatTime(entry.startTime);
+      if (index === 0 && attendanceClockIn) {
+        const clockInTime = formatTime(attendanceClockIn);
+        startMismatch = Boolean(clockInTime && clockInTime !== startTime);
+      }
+      if (index > 0) {
+        const prev = entries[index - 1];
+        if (!prev.endTime) {
+          startMismatch = true;
+        } else {
+          const prevEnd = formatTime(prev.endTime);
+          startMismatch = prevEnd !== startTime;
+        }
+      }
+      if (attendanceClockOut && index === entries.length - 1) {
+        const clockOutTime = formatTime(attendanceClockOut);
+        if (!entry.endTime) {
+          endMismatch = Boolean(clockOutTime);
+        } else {
+          const endTime = formatTime(entry.endTime);
+          endMismatch = Boolean(clockOutTime && clockOutTime !== endTime);
+        }
+      }
+      acc[entry.id] = { start: startMismatch, end: endMismatch };
+      return acc;
+    },
+    {}
+  );
 
   return (
     <>
@@ -303,14 +344,14 @@ export default function DailyTimeEntryTable({
           <CardTitle>稼働実績</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
+          <Table className="[&_th]:text-left [&_td]:text-left">
             <TableHeader>
               <TableRow>
-                <TableHead>Task</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead className="text-right">Time</TableHead>
-                <TableHead className="text-right">Duration</TableHead>
-                <TableHead className="text-right">Edit</TableHead>
+                <TableHead className="text-left">Task</TableHead>
+                <TableHead className="text-left">Project</TableHead>
+                <TableHead className="text-left">Time</TableHead>
+                <TableHead className="text-left">Duration</TableHead>
+                <TableHead className="text-left">Edit</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -323,26 +364,42 @@ export default function DailyTimeEntryTable({
               ) : (
                 entries.map((entry) => (
                   <TableRow key={entry.id}>
-                    <TableCell>
+                    <TableCell className="text-left">
                       {entry.dailyTask?.title ||
                         entry.routineTask?.title ||
                         "タスクなし"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-left">
                       {entry.project && entry.wbs
                         ? `${entry.project.abbreviation || entry.project.code}■${entry.wbs.name}`
                         : entry.project
                         ? `${entry.project.code} - ${entry.project.name}`
                         : "-"}
                     </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {formatTimeRange(entry)}
+                    <TableCell className="text-left font-mono">
+                      <span
+                        className={
+                          timeWarnings[entry.id]?.start ? "text-destructive" : ""
+                        }
+                      >
+                        {format(new Date(entry.startTime), "HH:mm")}
+                      </span>
+                      {" - "}
+                      <span
+                        className={
+                          timeWarnings[entry.id]?.end ? "text-destructive" : ""
+                        }
+                      >
+                        {entry.endTime
+                          ? format(new Date(entry.endTime), "HH:mm")
+                          : "進行中"}
+                      </span>
                     </TableCell>
-                    <TableCell className="text-right font-mono font-semibold">
+                    <TableCell className="text-left font-mono font-semibold">
                       {formatDurationHours(entry.duration)}h
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
+                    <TableCell className="text-left">
+                      <div className="flex justify-start gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -424,8 +481,8 @@ export default function DailyTimeEntryTable({
                   }
                   required
                 >
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Task" />
+                  <SelectTrigger className="h-9 w-full justify-start text-left">
+                    <SelectValue className="text-left" placeholder="Task" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none" disabled>
@@ -463,8 +520,8 @@ export default function DailyTimeEntryTable({
                     }
                   }}
                 >
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Project" />
+                  <SelectTrigger className="h-9 w-full justify-start text-left">
+                    <SelectValue className="text-left" placeholder="Project" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No project</SelectItem>
@@ -485,7 +542,7 @@ export default function DailyTimeEntryTable({
                     setCreateFormData({ ...createFormData, startTime: e.target.value })
                   }
                   required
-                  className="h-9"
+                  className="h-9 text-left tabular-nums"
                   placeholder="Start"
                 />
               </div>
@@ -498,7 +555,7 @@ export default function DailyTimeEntryTable({
                     setCreateFormData({ ...createFormData, endTime: e.target.value })
                   }
                   required
-                  className="h-9"
+                  className="h-9 text-left tabular-nums"
                   placeholder="End"
                 />
               </div>
