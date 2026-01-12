@@ -6,6 +6,8 @@
 ## ワークツリー + ブランチ
 - `main` からワークツリーとブランチ切ってや〜。ここはホンマに守ってな〜。
 - ワークツリー作る場所はここやで〜: `/Users/kansukechisuwa/project/manage-task-app-worktrees`
+- 新しくワークツリー作る時は `scripts/setup-worktree.sh <branch> [worktree-dir-name]` を使うと、
+  DBコピー・`.env`設定・`prisma db push`・ダミーデータ投入までまとめてやってくれるから便利やで〜。
 
 ## DB (SQLite + Prisma)
 - DBファイルのコピーは禁止やで〜。そこ間違えたらあかんで〜。
