@@ -42,6 +42,16 @@ model MorningRoutineItem {
   @@map("morning_routine_items")
 }
 
+model MorningRoutineTemplateItem {
+  id        String   @id @default(cuid())
+  title     String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("morning_routine_template_items")
+}
+
 model Project {
   id           String    @id @default(cuid())
   code         String    @unique
@@ -100,6 +110,20 @@ model DailyTask {
   @@map("daily_tasks")
 }
 
+model RoutineTask {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  sortOrder   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  timeEntries TimeEntry[]
+
+  @@index([sortOrder])
+  @@map("routine_tasks")
+}
+
 model EvmFixedTask {
   id               String   @id @default(cuid())
   date             DateTime
@@ -119,6 +143,8 @@ model TimeEntry {
   id          String      @id @default(cuid())
   dailyTaskId String?
   dailyTask   DailyTask?  @relation(fields: [dailyTaskId], references: [id], onDelete: SetNull)
+  routineTaskId String?
+  routineTask RoutineTask? @relation(fields: [routineTaskId], references: [id], onDelete: SetNull)
   projectId   String?
   project     Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
   wbsId       String?

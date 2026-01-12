@@ -36,6 +36,7 @@ export default function DailyPage() {
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
   const [editingRoutineTitle, setEditingRoutineTitle] = useState("");
   const [isRoutineSubmitting, setIsRoutineSubmitting] = useState(false);
+  const [isRoutineImporting, setIsRoutineImporting] = useState(false);
   const [isRoutineOpen, setIsRoutineOpen] = useState(true);
 
   // Fetch daily data
@@ -332,6 +333,46 @@ export default function DailyPage() {
     }
   };
 
+  const handleRoutineImport = async () => {
+    if (isRoutineImporting) return;
+    const hasExisting = routineItems.length > 0;
+    if (
+      hasExisting &&
+      !confirm("既存のルーティンをテンプレートで上書きしますか？")
+    ) {
+      return;
+    }
+    setIsRoutineImporting(true);
+    try {
+      const response = await fetch("/api/morning-routine/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: format(selectedDate, "yyyy-MM-dd"),
+          overwrite: hasExisting,
+        }),
+      });
+      const responseText = await response.text();
+      if (!response.ok) {
+        let message = responseText;
+        try {
+          message = JSON.parse(responseText).error || responseText;
+        } catch {
+          // Fallback to raw text when not JSON.
+        }
+        alert(message || "テンプレートの取り込みに失敗しました");
+        return;
+      }
+      await fetchDailyData();
+      setIsRoutineOpen(true);
+    } catch (error) {
+      console.error("Failed to import routine template:", error);
+      alert("テンプレートの取り込みに失敗しました");
+    } finally {
+      setIsRoutineImporting(false);
+    }
+  };
+
   const handleRoutineEditStart = (id: string, title: string) => {
     setEditingRoutineId(id);
     setEditingRoutineTitle(title);
@@ -522,23 +563,33 @@ export default function DailyPage() {
                 <CardTitle className={isRoutineOpen ? "" : "text-sm"}>
                   Morning Routine
                 </CardTitle>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setIsRoutineOpen((prev) => !prev)}
-                >
-                  {isRoutineOpen ? (
-                    <span className="flex items-center gap-1">
-                      折りたたむ
-                      <ChevronUp className="h-4 w-4" />
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1">
-                      開く
-                      <ChevronDown className="h-4 w-4" />
-                    </span>
-                  )}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleRoutineImport}
+                    disabled={isRoutineImporting}
+                  >
+                    {isRoutineImporting ? "取り込み中..." : "Import"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsRoutineOpen((prev) => !prev)}
+                  >
+                    {isRoutineOpen ? (
+                      <span className="flex items-center gap-1">
+                        折りたたむ
+                        <ChevronUp className="h-4 w-4" />
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        開く
+                        <ChevronDown className="h-4 w-4" />
+                      </span>
+                    )}
+                  </Button>
+                </div>
               </CardHeader>
               {isRoutineOpen && (
                 <CardContent className="space-y-4">
@@ -644,6 +695,7 @@ export default function DailyPage() {
                       onChange={(e) => setRoutineTitleDraft(e.target.value)}
                       placeholder="新しいルーティンを追加"
                       onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing) return;
                         if (e.key === "Enter") {
                           e.preventDefault();
                           handleRoutineCreate();
@@ -680,6 +732,7 @@ export default function DailyPage() {
               <DailyTimeEntryTable
                 entries={data.timeEntries || []}
                 dailyTasks={data.dailyTasks || []}
+                routineTasks={data.routineTasks || []}
                 projects={projects}
                 onUpdate={handleTimeEntryUpdate}
                 onDelete={handleTimeEntryDelete}

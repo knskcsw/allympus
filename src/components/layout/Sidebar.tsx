@@ -19,6 +19,7 @@ import {
   GripVertical,
   MoonStar,
   Wallet,
+  Repeat,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { Button } from "@/components/ui/button";
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Daily", href: "/daily", icon: CalendarDays },
+  { name: "Routine", href: "/routine", icon: Repeat },
   { name: "Attendance", href: "/attendance", icon: Clock },
   { name: "Sleep", href: "/sleep", icon: MoonStar },
   { name: "Projects", href: "/projects", icon: FolderKanban },

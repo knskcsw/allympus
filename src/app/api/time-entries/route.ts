@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     where,
     include: {
       dailyTask: true,
+      routineTask: true,
       project: true,
       wbs: true,
     },
@@ -33,7 +34,30 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { dailyTaskId, projectId, wbsId, note, startTime, endTime } = body;
+  const {
+    dailyTaskId,
+    routineTaskId,
+    projectId,
+    wbsId,
+    note,
+    startTime,
+    endTime,
+  } = body;
+  const normalizedDailyTaskId =
+    typeof dailyTaskId === "string" && dailyTaskId.trim() !== ""
+      ? dailyTaskId
+      : null;
+  const normalizedRoutineTaskId =
+    typeof routineTaskId === "string" && routineTaskId.trim() !== ""
+      ? routineTaskId
+      : null;
+
+  if (normalizedDailyTaskId && normalizedRoutineTaskId) {
+    return NextResponse.json(
+      { error: "Only one task type can be selected" },
+      { status: 400 }
+    );
+  }
 
   // startTime/endTime指定時はアクティブエントリチェックをスキップ
   const isManualEntry = startTime !== undefined;
@@ -61,7 +85,8 @@ export async function POST(request: NextRequest) {
 
   const timeEntry = await prisma.timeEntry.create({
     data: {
-      dailyTaskId: dailyTaskId || null,
+      dailyTaskId: normalizedDailyTaskId,
+      routineTaskId: normalizedRoutineTaskId,
       projectId: projectId || null,
       wbsId: wbsId || null,
       startTime: startTime ? new Date(startTime) : new Date(),
@@ -71,6 +96,7 @@ export async function POST(request: NextRequest) {
     },
     include: {
       dailyTask: true,
+      routineTask: true,
       project: true,
       wbs: true,
     },
