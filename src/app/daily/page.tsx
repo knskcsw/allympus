@@ -6,6 +6,7 @@ import DailyAttendanceBanner from "@/components/daily/DailyAttendanceBanner";
 import DailyTaskPanel from "@/components/daily/DailyTaskPanel";
 import DailyTimeEntryTable from "@/components/daily/DailyTimeEntryTable";
 import WbsSummaryCard from "@/components/daily/WbsSummaryCard";
+import WorkScheduleTemplateImporter from "@/components/daily/WorkScheduleTemplateImporter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -725,6 +726,10 @@ export default function DailyPage() {
                 </CardContent>
               )}
             </Card>
+            <WorkScheduleTemplateImporter
+              selectedDate={selectedDate}
+              onImportComplete={fetchDailyData}
+            />
             <WbsSummaryCard
               summary={data.wbsSummary || []}
               totalWorkingHours={totalWorkingHours}
