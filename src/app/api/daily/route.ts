@@ -85,6 +85,24 @@ export async function GET(request: NextRequest) {
                 name: true,
               },
             },
+            allocations: {
+              include: {
+                project: {
+                  select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                    abbreviation: true,
+                  },
+                },
+                wbs: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
           },
         }),
         prisma.morningRoutineItem.findMany({
@@ -101,56 +119,90 @@ export async function GET(request: NextRequest) {
         }),
       ]);
 
-  // Calculate total time spent for each daily task
-  const tasksWithTotalTime = dailyTasks.map((task) => ({
-    ...task,
-    totalTimeSpent: task.timeEntries.reduce(
-      (acc, entry) => acc + (entry.duration || 0),
-      0
-    ),
-  }));
+    // Calculate total time spent for each daily task
+    const tasksWithTotalTime = dailyTasks.map((task) => ({
+      ...task,
+      totalTimeSpent: task.timeEntries.reduce(
+        (acc, entry) => acc + (entry.duration || 0),
+        0
+      ),
+    }));
 
-  // Calculate WBS summary (grouped by project and WBS)
-  const wbsSummaryMap = new Map<string, {
-    projectId: string | null;
-    projectName: string;
-    projectAbbreviation: string | null;
-    wbsId: string | null;
-    wbsName: string;
-    totalSeconds: number;
-  }>();
+    // Calculate WBS summary (grouped by project and WBS)
+    const wbsSummaryMap = new Map<
+      string,
+      {
+        projectId: string | null;
+        projectName: string;
+        projectAbbreviation: string | null;
+        wbsId: string | null;
+        wbsName: string;
+        totalSeconds: number;
+      }
+    >();
 
-  timeEntries.forEach((entry) => {
-    if (!entry.projectId) {
-      return;
-    }
-    const projectId = entry.projectId || null;
-    const projectName = entry.project?.name || "No Project";
-    const projectAbbreviation = entry.project?.abbreviation || null;
-    const wbsId = entry.wbsId || null;
-    const wbsName = entry.wbs?.name || "No WBS";
-    const key = `${projectId || "null"}-${wbsId || "null"}`;
+    const processEntry = (
+      projectId: string | null,
+      projectName: string,
+      projectAbbreviation: string | null,
+      wbsId: string | null,
+      wbsName: string,
+      durationSeconds: number
+    ) => {
+      if (!projectId) return;
 
-    const existing = wbsSummaryMap.get(key);
-    if (existing) {
-      existing.totalSeconds += entry.duration || 0;
-    } else {
-      wbsSummaryMap.set(key, {
-        projectId,
-        projectName,
-        projectAbbreviation,
-        wbsId,
-        wbsName,
-        totalSeconds: entry.duration || 0,
-      });
-    }
-  });
+      const key = `${projectId || "null"}-${wbsId || "null"}`;
+      const existing = wbsSummaryMap.get(key);
 
-  // Convert to array and add decimal hours
-  const wbsSummary = Array.from(wbsSummaryMap.values()).map((item) => ({
-    ...item,
-    totalHours: Number((item.totalSeconds / 3600).toFixed(2)),
-  }));
+      if (existing) {
+        existing.totalSeconds += durationSeconds;
+      } else {
+        wbsSummaryMap.set(key, {
+          projectId,
+          projectName,
+          projectAbbreviation,
+          wbsId,
+          wbsName,
+          totalSeconds: durationSeconds,
+        });
+      }
+    };
+
+    timeEntries.forEach((entry) => {
+      // Check for allocations first
+      if (entry.allocations && entry.allocations.length > 0) {
+        entry.allocations.forEach((alloc) => {
+          const allocatedDuration = Math.round(
+            (entry.duration || 0) * (alloc.percentage / 100)
+          );
+
+          processEntry(
+            alloc.projectId,
+            alloc.project?.name || "No Project",
+            alloc.project?.abbreviation || null,
+            alloc.wbsId,
+            alloc.wbs?.name || "No WBS",
+            allocatedDuration
+          );
+        });
+      } else if (entry.projectId) {
+        // Simple entry with direct project assignment
+        processEntry(
+          entry.projectId,
+          entry.project?.name || "No Project",
+          entry.project?.abbreviation || null,
+          entry.wbsId,
+          entry.wbs?.name || "No WBS",
+          entry.duration || 0
+        );
+      }
+    });
+
+    // Convert to array and add decimal hours
+    const wbsSummary = Array.from(wbsSummaryMap.values()).map((item) => ({
+      ...item,
+      totalHours: Number((item.totalSeconds / 3600).toFixed(2)),
+    }));
 
     // Return aggregated data
     return NextResponse.json({

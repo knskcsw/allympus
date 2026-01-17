@@ -73,6 +73,7 @@ model Project {
   projectWorkHours          ProjectWorkHours[]
   evmFixedTasks             EvmFixedTask[]
   workScheduleTemplateItems WorkScheduleTemplateItem[]
+  allocationEntries         AllocationEntry[]
 
   @@index([isActive])
   @@map("projects")
@@ -91,6 +92,7 @@ model Wbs {
 
   timeEntries               TimeEntry[]
   workScheduleTemplateItems WorkScheduleTemplateItem[]
+  allocationEntries         AllocationEntry[]
 
   @@index([projectId, sortOrder])
   @@map("wbs")
@@ -162,7 +164,25 @@ model TimeEntry {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
+  allocations AllocationEntry[]
+
   @@map("time_entries")
+}
+
+model AllocationEntry {
+  id          String    @id @default(cuid())
+  timeEntryId String
+  timeEntry   TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  wbsId       String?
+  wbs         Wbs?      @relation(fields: [wbsId], references: [id], onDelete: SetNull)
+  percentage  Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([timeEntryId])
+  @@map("allocation_entries")
 }
 
 model ProjectWorkHours {
