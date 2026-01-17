@@ -46,6 +46,28 @@ function parseWbsNoToSortOrder(wbsNo: string): number {
   return parseInt(parts.join("")) || 0;
 }
 
+function extractFiscalYear(projectCode: string): number | null {
+  // Extract fiscal year from project code like "PJ25", "PJ24", etc.
+  const match = projectCode.match(/PJ(\d{2})/i);
+  if (match) {
+    return parseInt(match[1]);
+  }
+  return null;
+}
+
+function getCurrentFiscalYear(): number {
+  // Japanese fiscal year starts in April
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth(); // 0-indexed
+
+  // If before April (month < 3), we're still in the previous fiscal year
+  const fiscalYear = month < 3 ? year - 1 : year;
+
+  // Return last 2 digits
+  return fiscalYear % 100;
+}
+
 function groupByProjectCode(data: CSVRow[]): Record<string, CSVRow[]> {
   const groups: Record<string, CSVRow[]> = {};
   for (const row of data) {
@@ -150,6 +172,11 @@ export async function POST(request: NextRequest) {
           const startDate = parseDateString(firstRow.startDate);
           const endDate = parseDateString(firstRow.endDate);
 
+          // Determine if project should be active based on fiscal year
+          const projectFiscalYear = extractFiscalYear(projectCode);
+          const currentFiscalYear = getCurrentFiscalYear();
+          const shouldBeActive = projectFiscalYear === null || projectFiscalYear === currentFiscalYear;
+
           // プロジェクトのupsert
           const existingProject = await tx.project.findUnique({
             where: { code: projectCode },
@@ -162,6 +189,7 @@ export async function POST(request: NextRequest) {
               member: firstRow.member || null,
               startDate,
               endDate,
+              isActive: shouldBeActive,
             },
             create: {
               code: projectCode,
@@ -169,7 +197,7 @@ export async function POST(request: NextRequest) {
               member: firstRow.member || null,
               startDate,
               endDate,
-              isActive: true,
+              isActive: shouldBeActive,
               isKadminActive: true,
               sortOrder: nextSortOrder,
               kadminSortOrder: nextKadminSortOrder,
