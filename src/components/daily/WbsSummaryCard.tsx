@@ -27,28 +27,47 @@ export default function WbsSummaryCard({
 }: WbsSummaryCardProps) {
   const [isOpen, setIsOpen] = useState(true);
 
-  // Calculate total hours across all entries
-  const totalHours = summary.reduce((acc, item) => acc + item.totalHours, 0);
+  const isBreakProject = (item: WbsSummary) => {
+    const labels = [item.projectName, item.projectAbbreviation]
+      .filter((value): value is string => Boolean(value))
+      .map((value) => value.toLowerCase());
+    return labels.some((value) => value === "休憩" || value === "break");
+  };
+
+  // Calculate total hours across all entries (exclude break)
+  const totalHours = summary.reduce(
+    (acc, item) => acc + (isBreakProject(item) ? 0 : item.totalHours),
+    0
+  );
   const hasWorkingHours =
     typeof totalWorkingHours === "number" && Number.isFinite(totalWorkingHours);
   const hasMismatch =
     hasWorkingHours && Math.abs(totalHours - totalWorkingHours) > 0.01;
 
   // Group by project
-  const groupedByProject = summary.reduce((acc, item) => {
+  const groupedByProject = summary.reduce((acc, item, index) => {
     const key = item.projectName;
-    if (!acc[key]) {
-      acc[key] = {
+    if (!acc.has(key)) {
+      acc.set(key, {
         projectName: item.projectName,
         projectAbbreviation: item.projectAbbreviation,
         items: [],
         totalHours: 0,
-      };
+        order: index,
+        isBreak: isBreakProject(item),
+      });
     }
-    acc[key].items.push(item);
-    acc[key].totalHours += item.totalHours;
+    const group = acc.get(key);
+    if (group) {
+      group.items.push(item);
+      group.totalHours += item.totalHours;
+    }
     return acc;
-  }, {} as Record<string, { projectName: string; projectAbbreviation: string | null; items: WbsSummary[]; totalHours: number }>);
+  }, new Map<string, { projectName: string; projectAbbreviation: string | null; items: WbsSummary[]; totalHours: number; order: number; isBreak: boolean }>());
+  const groupedProjects = Array.from(groupedByProject.values()).sort((a, b) => {
+    if (a.isBreak !== b.isBreak) return a.isBreak ? 1 : -1;
+    return a.order - b.order;
+  });
 
   return (
     <Card>
@@ -94,7 +113,7 @@ export default function WbsSummaryCard({
             </p>
           ) : (
             <div className="space-y-4">
-              {Object.values(groupedByProject).map((group) => (
+              {groupedProjects.map((group) => (
                 <div key={group.projectName} className="space-y-2">
                   <div className="flex items-center justify-between border-b pb-1">
                     <h3 className="font-semibold text-sm">

@@ -14,6 +14,45 @@ export async function GET(request: NextRequest) {
     filters.push({ isKadminActive: true });
   }
 
+  const existingBreakProject = await prisma.project.findFirst({
+    where: {
+      OR: [
+        { code: "BREAK" },
+        { code: "break" },
+        { name: "休憩" },
+        { abbreviation: "休憩" },
+      ],
+    },
+  });
+  if (existingBreakProject) {
+    if (!existingBreakProject.isActive || !existingBreakProject.isKadminActive) {
+      await prisma.project.update({
+        where: { id: existingBreakProject.id },
+        data: { isActive: true, isKadminActive: true },
+      });
+    }
+  } else {
+    const lastOrders = await prisma.project.findFirst({
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
+    const lastKadminOrders = await prisma.project.findFirst({
+      orderBy: { kadminSortOrder: "desc" },
+      select: { kadminSortOrder: true },
+    });
+    await prisma.project.create({
+      data: {
+        code: "BREAK",
+        name: "休憩",
+        abbreviation: "休憩",
+        isActive: true,
+        isKadminActive: true,
+        sortOrder: (lastOrders?.sortOrder ?? 0) + 1,
+        kadminSortOrder: (lastKadminOrders?.kadminSortOrder ?? 0) + 1,
+      },
+    });
+  }
+
   // Fetch all projects and sort in memory for complex multi-field sorting
   const allProjects = await prisma.project.findMany({
     where: filters.length ? { AND: filters } : {},

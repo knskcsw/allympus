@@ -20,6 +20,16 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
+const isBreakProject = (
+  project?: { code?: string; name?: string; abbreviation?: string | null } | null
+) => {
+  if (!project) return false;
+  const labels = [project.code, project.name, project.abbreviation]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.toLowerCase());
+  return labels.some((value) => value === "休憩" || value === "break");
+};
+
 export default function DailyPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [data, setData] = useState<any>(null);
@@ -40,14 +50,22 @@ export default function DailyPage() {
   const [isRoutineImporting, setIsRoutineImporting] = useState(false);
   const [isRoutineOpen, setIsRoutineOpen] = useState(true);
 
+  const breakMinutesFromEntries =
+    (data?.timeEntries || []).reduce((acc: number, entry: any) => {
+      if (!isBreakProject(entry.project)) return acc;
+      return acc + (entry.duration || 0);
+    }, 0) / 60;
+
   const totalWorkingHours = (() => {
     if (!data?.attendance?.clockIn) return null;
     const start = new Date(data.attendance.clockIn);
     const end = data.attendance.clockOut
       ? new Date(data.attendance.clockOut)
       : new Date();
-    const breakMinutes = data.attendance.breakMinutes || 0;
-    const totalMinutes = (end.getTime() - start.getTime()) / (1000 * 60) - breakMinutes;
+    const breakMinutes =
+      (data.attendance.breakMinutes || 0) + Math.round(breakMinutesFromEntries);
+    const totalMinutes =
+      (end.getTime() - start.getTime()) / (1000 * 60) - breakMinutes;
     return totalMinutes / 60;
   })();
 
@@ -520,6 +538,7 @@ export default function DailyPage() {
         onClockOut={handleClockOut}
         showClockOut={canClockOut}
         onAttendanceUpdated={fetchDailyData}
+        additionalBreakMinutes={Math.round(breakMinutesFromEntries)}
       />
 
       {isFutureDate ? (
