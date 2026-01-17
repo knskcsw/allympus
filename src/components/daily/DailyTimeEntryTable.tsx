@@ -81,7 +81,6 @@ export default function DailyTimeEntryTable({
 }: DailyTimeEntryTableProps) {
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [formData, setFormData] = useState({
-    taskSource: "daily",
     taskId: "",
     projectId: "",
     wbsId: "",
@@ -89,7 +88,6 @@ export default function DailyTimeEntryTable({
     endTime: "",
   });
   const [createFormData, setCreateFormData] = useState({
-    taskSource: "daily",
     taskId: "",
     newTaskTitle: "", // 自由入力用
     projectId: "",
@@ -163,7 +161,6 @@ export default function DailyTimeEntryTable({
   // selectedDate変更時にフォームリセット
   useEffect(() => {
     setCreateFormData({
-      taskSource: "daily",
       taskId: "",
       newTaskTitle: "",
       projectId: "",
@@ -175,10 +172,12 @@ export default function DailyTimeEntryTable({
 
   const handleEdit = (entry: TimeEntry) => {
     setEditingEntry(entry);
-    const taskSource = entry.routineTaskId ? "routine" : "daily";
-    const taskId = entry.routineTaskId || entry.dailyTaskId || "";
+    const taskId = entry.routineTaskId
+      ? `routine:${entry.routineTaskId}`
+      : entry.dailyTaskId
+      ? `daily:${entry.dailyTaskId}`
+      : "";
     setFormData({
-      taskSource,
       taskId,
       projectId: entry.projectId || "",
       wbsId: entry.wbsId || "",
@@ -213,10 +212,11 @@ export default function DailyTimeEntryTable({
       endDate.setHours(endHours, endMinutes, 0, 0);
     }
 
+    const [taskSource, taskIdValue] = formData.taskId.split(":");
     const taskPayload =
-      formData.taskSource === "routine"
-        ? { routineTaskId: formData.taskId, dailyTaskId: null }
-        : { dailyTaskId: formData.taskId, routineTaskId: null };
+      taskSource === "routine"
+        ? { routineTaskId: taskIdValue, dailyTaskId: null }
+        : { dailyTaskId: taskIdValue, routineTaskId: null };
 
     onUpdate(editingEntry.id, {
       ...taskPayload,
@@ -235,7 +235,7 @@ export default function DailyTimeEntryTable({
 
     // バリデーション：既存タスク選択か新規タスク入力のどちらかが必要
     const hasExistingTask = createFormData.taskId && createFormData.taskId !== "none" && createFormData.taskId !== "new";
-    const hasNewTask = createFormData.taskSource === "daily" && createFormData.newTaskTitle.trim() !== "";
+    const hasNewTask = createFormData.newTaskTitle.trim() !== "";
 
     if (!hasExistingTask && !hasNewTask) {
       alert("タスクを選択するか、新しいタスク名を入力してください");
@@ -274,7 +274,7 @@ export default function DailyTimeEntryTable({
     setIsCreating(true);
     try {
       // API呼び出し
-      const isNewTask = createFormData.taskSource === "daily" && createFormData.newTaskTitle.trim() !== "";
+      const isNewTask = createFormData.newTaskTitle.trim() !== "";
 
       let taskPayload;
       if (isNewTask) {
@@ -285,10 +285,13 @@ export default function DailyTimeEntryTable({
           dailyTaskId: null,
           routineTaskId: null,
         };
-      } else if (createFormData.taskSource === "routine") {
-        taskPayload = { routineTaskId: createFormData.taskId, dailyTaskId: null };
       } else {
-        taskPayload = { dailyTaskId: createFormData.taskId, routineTaskId: null };
+        const [taskSource, taskIdValue] = createFormData.taskId.split(":");
+        if (taskSource === "routine") {
+          taskPayload = { routineTaskId: taskIdValue, dailyTaskId: null };
+        } else {
+          taskPayload = { dailyTaskId: taskIdValue, routineTaskId: null };
+        }
       }
 
       onCreate({
@@ -301,7 +304,6 @@ export default function DailyTimeEntryTable({
 
       // フォームリセット（タスク/プロジェクト/WBSはクリア、時間は次の実績のために維持）
       setCreateFormData({
-        taskSource: createFormData.taskSource,
         taskId: "",
         newTaskTitle: "",
         projectId: "",
@@ -493,53 +495,8 @@ export default function DailyTimeEntryTable({
           <form onSubmit={handleCreateSubmit} className="mt-4 border-t pt-4">
             <div className="flex gap-2 items-end">
               <div className="flex-1">
-                <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>Task</span>
-                  <div className="flex gap-1">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={
-                        createFormData.taskSource === "daily"
-                          ? "default"
-                          : "outline"
-                      }
-                      className="h-7 px-2"
-                      onClick={() =>
-                        setCreateFormData({
-                          ...createFormData,
-                          taskSource: "daily",
-                          taskId: "",
-                          newTaskTitle: "",
-                        })
-                      }
-                    >
-                      Daily
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={
-                        createFormData.taskSource === "routine"
-                          ? "default"
-                          : "outline"
-                      }
-                      className="h-7 px-2"
-                      onClick={() =>
-                        setCreateFormData({
-                          ...createFormData,
-                          taskSource: "routine",
-                          taskId: "",
-                          newTaskTitle: "",
-                        })
-                      }
-                    >
-                      Routine
-                    </Button>
-                  </div>
-                </div>
                 {/* 新規タスク入力モードの場合はテキスト入力、それ以外はドロップダウン */}
-                {createFormData.taskId === "new" && createFormData.taskSource === "daily" ? (
+                {createFormData.taskId === "new" ? (
                   <div className="flex gap-1">
                     <Input
                       type="text"
@@ -589,19 +546,26 @@ export default function DailyTimeEntryTable({
                       <SelectItem value="none" disabled>
                         Select task
                       </SelectItem>
-                      {createFormData.taskSource === "daily" && (
-                        <SelectItem value="new" className="text-primary font-medium">
-                          + 新規タスク
-                        </SelectItem>
-                      )}
-                      {(createFormData.taskSource === "daily"
-                        ? dailyTasks
-                        : routineTasks
-                      ).map((task) => (
-                        <SelectItem key={task.id} value={task.id}>
+                      <SelectItem value="new" className="text-primary font-medium">
+                        + 新規タスク
+                      </SelectItem>
+                      {dailyTasks.map((task) => (
+                        <SelectItem key={task.id} value={`daily:${task.id}`}>
                           {task.title}
                         </SelectItem>
                       ))}
+                      {routineTasks.length > 0 && (
+                        <>
+                          <div className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-xs font-semibold text-muted-foreground pointer-events-none">
+                            ─── Routine ───
+                          </div>
+                          {routineTasks.map((task) => (
+                            <SelectItem key={task.id} value={`routine:${task.id}`}>
+                              {task.title}
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 )}
@@ -689,36 +653,6 @@ export default function DailyTimeEntryTable({
               <Label htmlFor="dailyTask">
                 タスク <span className="text-destructive">*</span>
               </Label>
-              <div className="mt-2 flex gap-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={formData.taskSource === "daily" ? "default" : "outline"}
-                  className="h-7 px-2"
-                  onClick={() =>
-                    setFormData({ ...formData, taskSource: "daily", taskId: "" })
-                  }
-                >
-                  Daily
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={
-                    formData.taskSource === "routine" ? "default" : "outline"
-                  }
-                  className="h-7 px-2"
-                  onClick={() =>
-                    setFormData({
-                      ...formData,
-                      taskSource: "routine",
-                      taskId: "",
-                    })
-                  }
-                >
-                  Routine
-                </Button>
-              </div>
               <Select
                 value={formData.taskId || "none"}
                 onValueChange={(value) =>
@@ -736,14 +670,23 @@ export default function DailyTimeEntryTable({
                   <SelectItem value="none" disabled>
                     タスクを選択してください
                   </SelectItem>
-                  {(formData.taskSource === "daily"
-                    ? dailyTasks
-                    : routineTasks
-                  ).map((task) => (
-                    <SelectItem key={task.id} value={task.id}>
+                  {dailyTasks.map((task) => (
+                    <SelectItem key={task.id} value={`daily:${task.id}`}>
                       {task.title}
                     </SelectItem>
                   ))}
+                  {routineTasks.length > 0 && (
+                    <>
+                      <div className="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-xs font-semibold text-muted-foreground pointer-events-none">
+                        ─── Routine ───
+                      </div>
+                      {routineTasks.map((task) => (
+                        <SelectItem key={task.id} value={`routine:${task.id}`}>
+                          {task.title}
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
