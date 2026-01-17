@@ -8,6 +8,9 @@ import { ProjectImportDialog } from "@/components/projects/ProjectImportDialog";
 import { Plus, FolderKanban, Upload } from "lucide-react";
 import type { Project, Wbs } from "@/generated/prisma/client";
 import type { WorkType } from "@/lib/workTypes";
+import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 type ProjectWithWbs = Project & { wbsList: Wbs[] };
 
@@ -123,6 +126,15 @@ export default function ProjectsPage() {
     [fetchProjects]
   );
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const getGroupKey = (project: ProjectWithWbs) =>
+    `${project.isActive ? "1" : "0"}-${project.isKadminActive ? "1" : "0"}`;
+
   const handleMoveProject = useCallback(
     (projectId: string, direction: "up" | "down") => {
       setProjects((prev) => {
@@ -132,7 +144,29 @@ export default function ProjectsPage() {
         if (currentIndex < 0 || targetIndex < 0 || targetIndex >= next.length) {
           return prev;
         }
+        if (getGroupKey(next[currentIndex]) !== getGroupKey(next[targetIndex])) {
+          return prev;
+        }
         [next[currentIndex], next[targetIndex]] = [next[targetIndex], next[currentIndex]];
+        void updateProjectOrder(next.map((project) => project.id));
+        return next;
+      });
+    },
+    [updateProjectOrder]
+  );
+
+  const handleDragEnd = useCallback(
+    ({ active, over }: DragEndEvent) => {
+      if (!over) return;
+      if (active.id === over.id) return;
+
+      setProjects((prev) => {
+        const fromIndex = prev.findIndex((project) => project.id === active.id);
+        const toIndex = prev.findIndex((project) => project.id === over.id);
+        if (fromIndex < 0 || toIndex < 0) return prev;
+        if (getGroupKey(prev[fromIndex]) !== getGroupKey(prev[toIndex])) return prev;
+
+        const next = arrayMove(prev, fromIndex, toIndex);
         void updateProjectOrder(next.map((project) => project.id));
         return next;
       });
@@ -174,17 +208,24 @@ export default function ProjectsPage() {
           <p className="text-sm">Create your first project to get started</p>
         </div>
       ) : (
-        <ProjectList
-          projects={projects}
-          onAddWbs={handleAddWbs}
-          onDeleteWbs={handleDeleteWbs}
-          onUpdateWbs={handleUpdateWbs}
-          onDeleteProject={handleDeleteProject}
-          onUpdateProject={handleUpdateProject}
-          onToggleActive={handleToggleActive}
-          onToggleKadminActive={handleToggleKadminActive}
-          onMoveProject={handleMoveProject}
-        />
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+          onDragEnd={handleDragEnd}
+        >
+          <ProjectList
+            projects={projects}
+            onAddWbs={handleAddWbs}
+            onDeleteWbs={handleDeleteWbs}
+            onUpdateWbs={handleUpdateWbs}
+            onDeleteProject={handleDeleteProject}
+            onUpdateProject={handleUpdateProject}
+            onToggleActive={handleToggleActive}
+            onToggleKadminActive={handleToggleKadminActive}
+            onMoveProject={handleMoveProject}
+          />
+        </DndContext>
       )}
 
       <ProjectForm
