@@ -63,24 +63,27 @@ export default function RootLayout({
     document.documentElement.classList.toggle("dark", initialTheme === "dark");
 
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = (event: MediaQueryListEvent) => {
+    const handleChange = (event: MediaQueryListEvent | MediaQueryList) => {
+      const matches = "matches" in event ? event.matches : (event as MediaQueryList).matches;
       if (!localStorage.getItem("theme")) {
-        const nextTheme = event.matches ? "dark" : "light";
+        const nextTheme = matches ? "dark" : "light";
         setTheme(nextTheme);
         document.documentElement.classList.toggle("dark", nextTheme === "dark");
       }
     };
 
-    if (mediaQuery.addEventListener) {
+    if ("addEventListener" in mediaQuery) {
       mediaQuery.addEventListener("change", handleChange);
     } else {
+      // @ts-expect-error - Legacy Safari support
       mediaQuery.addListener(handleChange);
     }
 
     return () => {
-      if (mediaQuery.addEventListener) {
+      if ("addEventListener" in mediaQuery) {
         mediaQuery.removeEventListener("change", handleChange);
       } else {
+        // @ts-expect-error - Legacy Safari support
         mediaQuery.removeListener(handleChange);
       }
     };

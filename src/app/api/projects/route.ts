@@ -14,18 +14,35 @@ export async function GET(request: NextRequest) {
     filters.push({ isKadminActive: true });
   }
 
-  const orderBy = kadminActiveOnly
-    ? [{ kadminSortOrder: "asc" }, { createdAt: "desc" }]
-    : [{ sortOrder: "asc" }, { createdAt: "desc" }];
-
-  const projects = await prisma.project.findMany({
+  // Fetch all projects and sort in memory for complex multi-field sorting
+  const allProjects = await prisma.project.findMany({
     where: filters.length ? { AND: filters } : {},
-    orderBy,
     include: {
       wbsList: {
         orderBy: { sortOrder: "asc" },
       },
     },
+  });
+
+  // Complex sorting logic:
+  // 1. Active & KadminActive (top priority)
+  // 2. Active & !KadminActive
+  // 3. !Active & KadminActive
+  // 4. !Active & !KadminActive (bottom)
+  const projects = allProjects.sort((a, b) => {
+    const aPriority = a.isActive ? (a.isKadminActive ? 0 : 1) : (a.isKadminActive ? 2 : 3);
+    const bPriority = b.isActive ? (b.isKadminActive ? 0 : 1) : (b.isKadminActive ? 2 : 3);
+
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority;
+    }
+
+    // Within same priority group, sort by appropriate sortOrder
+    if (kadminActiveOnly) {
+      return a.kadminSortOrder - b.kadminSortOrder;
+    } else {
+      return a.sortOrder - b.sortOrder;
+    }
   });
 
   return NextResponse.json(projects);
