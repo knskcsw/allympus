@@ -18,6 +18,8 @@ interface MonthlyCalendarProps {
   month: number;
   attendances: Attendance[];
   holidays: Holiday[];
+  selectedDate?: Date | null;
+  onSelectDate?: (date: Date) => void;
 }
 
 function formatWorkingHours(clockIn: Date, clockOut: Date, breakMinutes: number): string {
@@ -33,6 +35,8 @@ export function MonthlyCalendar({
   month,
   attendances,
   holidays,
+  selectedDate,
+  onSelectDate,
 }: MonthlyCalendarProps) {
   const currentDate = new Date(year, month - 1);
   const monthStart = startOfMonth(currentDate);
@@ -99,6 +103,7 @@ export function MonthlyCalendar({
             : null;
           const isCurrentMonth = isSameMonth(day, currentDate);
           const isToday = isSameDay(day, today);
+          const isSelected = !!selectedDate && isSameDay(day, selectedDate);
           const hasWorked = attendance?.clockIn && attendance?.clockOut;
 
           return (
@@ -108,9 +113,15 @@ export function MonthlyCalendar({
                 "min-h-[80px] p-2 border rounded-md",
                 !isCurrentMonth && "bg-muted/50 text-muted-foreground",
                 isToday && "border-primary border-2",
+                isSelected && "ring-2 ring-primary",
                 hasWorked && "bg-green-50 dark:bg-green-950",
-                holidayStyle?.cell
+                holidayStyle?.cell,
+                isCurrentMonth && onSelectDate && "cursor-pointer hover:bg-muted/30"
               )}
+              onClick={() => {
+                if (!isCurrentMonth) return;
+                onSelectDate?.(day);
+              }}
             >
               <div className="text-sm font-medium">{format(day, "d")}</div>
               {isCurrentMonth && (
