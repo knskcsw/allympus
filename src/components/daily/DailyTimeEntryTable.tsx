@@ -87,6 +87,7 @@ export default function DailyTimeEntryTable({
   const [createFormData, setCreateFormData] = useState({
     taskSource: "daily",
     taskId: "",
+    newTaskTitle: "", // 自由入力用
     projectId: "",
     wbsId: "",
     startTime: "",
@@ -133,6 +134,7 @@ export default function DailyTimeEntryTable({
     setCreateFormData({
       taskSource: "daily",
       taskId: "",
+      newTaskTitle: "",
       projectId: "",
       wbsId: "",
       startTime: "",
@@ -200,9 +202,12 @@ export default function DailyTimeEntryTable({
     e.preventDefault();
     if (isCreating) return; // 二重送信防止
 
-    // バリデーション
-    if (!createFormData.taskId || createFormData.taskId === "none") {
-      alert("タスクを選択してください");
+    // バリデーション：既存タスク選択か新規タスク入力のどちらかが必要
+    const hasExistingTask = createFormData.taskId && createFormData.taskId !== "none" && createFormData.taskId !== "new";
+    const hasNewTask = createFormData.taskSource === "daily" && createFormData.newTaskTitle.trim() !== "";
+
+    if (!hasExistingTask && !hasNewTask) {
+      alert("タスクを選択するか、新しいタスク名を入力してください");
       return;
     }
 
@@ -238,10 +243,22 @@ export default function DailyTimeEntryTable({
     setIsCreating(true);
     try {
       // API呼び出し
-      const taskPayload =
-        createFormData.taskSource === "routine"
-          ? { routineTaskId: createFormData.taskId, dailyTaskId: null }
-          : { dailyTaskId: createFormData.taskId, routineTaskId: null };
+      const isNewTask = createFormData.taskSource === "daily" && createFormData.newTaskTitle.trim() !== "";
+
+      let taskPayload;
+      if (isNewTask) {
+        // 新規タスク作成の場合
+        taskPayload = {
+          newTaskTitle: createFormData.newTaskTitle.trim(),
+          date: selectedDate.toISOString(),
+          dailyTaskId: null,
+          routineTaskId: null,
+        };
+      } else if (createFormData.taskSource === "routine") {
+        taskPayload = { routineTaskId: createFormData.taskId, dailyTaskId: null };
+      } else {
+        taskPayload = { dailyTaskId: createFormData.taskId, routineTaskId: null };
+      }
 
       onCreate({
         ...taskPayload,
@@ -255,6 +272,7 @@ export default function DailyTimeEntryTable({
       setCreateFormData({
         taskSource: createFormData.taskSource,
         taskId: "",
+        newTaskTitle: "",
         projectId: "",
         wbsId: "",
         startTime: createFormData.endTime, // 前の終了時間を次の開始時間に
@@ -445,6 +463,7 @@ export default function DailyTimeEntryTable({
                           ...createFormData,
                           taskSource: "daily",
                           taskId: "",
+                          newTaskTitle: "",
                         })
                       }
                     >
@@ -464,6 +483,7 @@ export default function DailyTimeEntryTable({
                           ...createFormData,
                           taskSource: "routine",
                           taskId: "",
+                          newTaskTitle: "",
                         })
                       }
                     >
@@ -471,33 +491,73 @@ export default function DailyTimeEntryTable({
                     </Button>
                   </div>
                 </div>
-                <Select
-                  value={createFormData.taskId || "none"}
-                  onValueChange={(value) =>
-                    setCreateFormData({
-                      ...createFormData,
-                      taskId: value === "none" ? "" : value,
-                    })
-                  }
-                  required
-                >
-                  <SelectTrigger className="h-9 w-full justify-start text-left">
-                    <SelectValue className="text-left" placeholder="Task" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none" disabled>
-                      Select task
-                    </SelectItem>
-                    {(createFormData.taskSource === "daily"
-                      ? dailyTasks
-                      : routineTasks
-                    ).map((task) => (
-                      <SelectItem key={task.id} value={task.id}>
-                        {task.title}
+                {/* 新規タスク入力モードの場合はテキスト入力、それ以外はドロップダウン */}
+                {createFormData.taskId === "new" && createFormData.taskSource === "daily" ? (
+                  <div className="flex gap-1">
+                    <Input
+                      type="text"
+                      value={createFormData.newTaskTitle}
+                      onChange={(e) =>
+                        setCreateFormData({
+                          ...createFormData,
+                          newTaskTitle: e.target.value,
+                        })
+                      }
+                      placeholder="新しいタスク名を入力"
+                      className="h-9 flex-1"
+                      autoFocus
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 px-2"
+                      onClick={() =>
+                        setCreateFormData({
+                          ...createFormData,
+                          taskId: "",
+                          newTaskTitle: "",
+                        })
+                      }
+                    >
+                      ×
+                    </Button>
+                  </div>
+                ) : (
+                  <Select
+                    value={createFormData.taskId || "none"}
+                    onValueChange={(value) =>
+                      setCreateFormData({
+                        ...createFormData,
+                        taskId: value === "none" ? "" : value,
+                        newTaskTitle: "",
+                      })
+                    }
+                    required
+                  >
+                    <SelectTrigger className="h-9 w-full justify-start text-left">
+                      <SelectValue className="text-left" placeholder="Task" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none" disabled>
+                        Select task
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      {createFormData.taskSource === "daily" && (
+                        <SelectItem value="new" className="text-primary font-medium">
+                          + 新規タスク
+                        </SelectItem>
+                      )}
+                      {(createFormData.taskSource === "daily"
+                        ? dailyTasks
+                        : routineTasks
+                      ).map((task) => (
+                        <SelectItem key={task.id} value={task.id}>
+                          {task.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="flex-1">

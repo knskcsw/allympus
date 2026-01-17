@@ -42,10 +42,53 @@ export async function POST(request: NextRequest) {
     note,
     startTime,
     endTime,
+    newTaskTitle, // 新規タスク作成用
+    date, // 新規タスク作成時の日付
   } = body;
+
+  // 新規タスク作成の場合
+  let finalDailyTaskId = dailyTaskId;
+  if (newTaskTitle && typeof newTaskTitle === "string" && newTaskTitle.trim() !== "") {
+    // 日付が必要
+    if (!date) {
+      return NextResponse.json(
+        { error: "date is required when creating a new task" },
+        { status: 400 }
+      );
+    }
+
+    const dayStart = startOfDay(new Date(date));
+    const dayEnd = endOfDay(new Date(date));
+
+    // sortOrderの取得
+    const existing = await prisma.dailyTask.aggregate({
+      where: {
+        date: {
+          gte: dayStart,
+          lte: dayEnd,
+        },
+      },
+      _max: { sortOrder: true },
+    });
+    const nextSortOrder = (existing._max.sortOrder ?? -1) + 1;
+
+    // DailyTaskを作成
+    const newTask = await prisma.dailyTask.create({
+      data: {
+        date: dayStart,
+        title: newTaskTitle.trim(),
+        status: "TODO",
+        priority: "MEDIUM",
+        sortOrder: nextSortOrder,
+      },
+    });
+
+    finalDailyTaskId = newTask.id;
+  }
+
   const normalizedDailyTaskId =
-    typeof dailyTaskId === "string" && dailyTaskId.trim() !== ""
-      ? dailyTaskId
+    typeof finalDailyTaskId === "string" && finalDailyTaskId.trim() !== ""
+      ? finalDailyTaskId
       : null;
   const normalizedRoutineTaskId =
     typeof routineTaskId === "string" && routineTaskId.trim() !== ""
