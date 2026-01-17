@@ -68,10 +68,11 @@ model Project {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  wbsList          Wbs[]
-  timeEntries      TimeEntry[]
-  projectWorkHours ProjectWorkHours[]
-  evmFixedTasks    EvmFixedTask[]
+  wbsList                   Wbs[]
+  timeEntries               TimeEntry[]
+  projectWorkHours          ProjectWorkHours[]
+  evmFixedTasks             EvmFixedTask[]
+  workScheduleTemplateItems WorkScheduleTemplateItem[]
 
   @@index([isActive])
   @@map("projects")
@@ -88,7 +89,8 @@ model Wbs {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  timeEntries TimeEntry[]
+  timeEntries               TimeEntry[]
+  workScheduleTemplateItems WorkScheduleTemplateItem[]
 
   @@index([projectId, sortOrder])
   @@map("wbs")
@@ -108,6 +110,7 @@ model DailyTask {
 
   timeEntries TimeEntry[]
 
+  @@unique([date, title])
   @@index([date])
   @@index([status])
   @@map("daily_tasks")
@@ -216,6 +219,37 @@ model MonthlyVacationHours {
 
   @@unique([fiscalYear, month])
   @@map("monthly_vacation_hours")
+}
+
+model WorkScheduleTemplate {
+  id        String                     @id @default(cuid())
+  name      String
+  sortOrder Int                        @default(0)
+  createdAt DateTime                   @default(now())
+  updatedAt DateTime                   @updatedAt
+
+  items WorkScheduleTemplateItem[]
+
+  @@map("work_schedule_templates")
+}
+
+model WorkScheduleTemplateItem {
+  id          String                @id @default(cuid())
+  templateId  String
+  template    WorkScheduleTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  startTime   String
+  endTime     String
+  projectId   String?
+  project     Project?              @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  wbsId       String?
+  wbs         Wbs?                  @relation(fields: [wbsId], references: [id], onDelete: SetNull)
+  description String
+  sortOrder   Int                   @default(0)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([templateId])
+  @@map("work_schedule_template_items")
 }
 
 model SalaryRecord {

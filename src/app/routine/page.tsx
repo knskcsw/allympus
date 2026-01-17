@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import WorkScheduleTemplates from "@/components/routine/WorkScheduleTemplates";
 
 type TemplateItem = {
   id: string;
@@ -261,6 +262,7 @@ export default function RoutinePage() {
 
   return (
     <div className="space-y-4 p-6 min-h-screen">
+      <h1 className="text-3xl font-bold">Routine Settings</h1>
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -481,6 +483,7 @@ export default function RoutinePage() {
             </div>
           </CardContent>
         </Card>
+        <WorkScheduleTemplates />
       </div>
     </div>
   );

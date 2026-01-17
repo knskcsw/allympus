@@ -79,17 +79,27 @@ export async function POST(request: NextRequest) {
   });
   const nextSortOrder = (existing._max.sortOrder ?? -1) + 1;
 
-  const dailyTask = await prisma.dailyTask.create({
-    data: {
-      date: dayStart,
-      title,
-      description,
-      status: status || "TODO",
-      priority: priority || "MEDIUM",
-      estimatedMinutes,
-      sortOrder: nextSortOrder,
-    },
-  });
+  try {
+    const dailyTask = await prisma.dailyTask.create({
+      data: {
+        date: dayStart,
+        title,
+        description,
+        status: status || "TODO",
+        priority: priority || "MEDIUM",
+        estimatedMinutes,
+        sortOrder: nextSortOrder,
+      },
+    });
 
-  return NextResponse.json(dailyTask, { status: 201 });
+    return NextResponse.json(dailyTask, { status: 201 });
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: "同じ名前のタスクが既に存在します" },
+        { status: 400 }
+      );
+    }
+    throw error;
+  }
 }
