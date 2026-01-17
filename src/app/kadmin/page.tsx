@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -11,12 +11,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, Save, Calculator, ArrowUp, ArrowDown } from "lucide-react";
+import { Briefcase, Save, Calculator, ArrowUp, ArrowDown, GripVertical } from "lucide-react";
+import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface Project {
   id: string;
   code: string;
   name: string;
+  isActive: boolean;
 }
 
 interface WorkHoursData {
@@ -265,6 +270,14 @@ export default function KadminPage() {
     });
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const getGroupKey = (project: Project) => (project.isActive ? "active" : "inactive");
+
   const handleMoveProject = (projectId: string, direction: "up" | "down") => {
     setProjects((prev) => {
       const next = [...prev];
@@ -273,10 +286,131 @@ export default function KadminPage() {
       if (currentIndex < 0 || targetIndex < 0 || targetIndex >= next.length) {
         return prev;
       }
+      if (getGroupKey(next[currentIndex]) !== getGroupKey(next[targetIndex])) {
+        return prev;
+      }
       [next[currentIndex], next[targetIndex]] = [next[targetIndex], next[currentIndex]];
       void updateProjectOrder(next.map((project) => project.id));
       return next;
     });
+  };
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over) return;
+    if (active.id === over.id) return;
+
+    setProjects((prev) => {
+      const fromIndex = prev.findIndex((project) => project.id === active.id);
+      const toIndex = prev.findIndex((project) => project.id === over.id);
+      if (fromIndex < 0 || toIndex < 0) return prev;
+      if (getGroupKey(prev[fromIndex]) !== getGroupKey(prev[toIndex])) return prev;
+
+      const next = arrayMove(prev, fromIndex, toIndex);
+      void updateProjectOrder(next.map((project) => project.id));
+      return next;
+    });
+  };
+
+  const SortableProjectRow = ({
+    project,
+    projectIndex,
+    canMoveUp,
+    canMoveDown,
+  }: {
+    project: Project;
+    projectIndex: number;
+    canMoveUp: boolean;
+    canMoveDown: boolean;
+  }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+      useSortable({ id: project.id });
+
+    const style: CSSProperties = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    };
+
+    return (
+      <TableRow
+        ref={setNodeRef}
+        style={style}
+        className={isDragging ? "opacity-70" : undefined}
+      >
+        <TableCell className="sticky left-0 bg-background font-medium z-10 border border-muted-foreground/20 px-1 py-0.5 text-sm">
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate">{project.name}</span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 cursor-grab active:cursor-grabbing touch-none"
+                aria-label="Drag to reorder"
+                {...attributes}
+                {...listeners}
+              >
+                <GripVertical className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => handleMoveProject(project.id, "up")}
+                disabled={!canMoveUp}
+                aria-label="Move up"
+              >
+                <ArrowUp className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => handleMoveProject(project.id, "down")}
+                disabled={!canMoveDown}
+                aria-label="Move down"
+              >
+                <ArrowDown className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </TableCell>
+        {/* 12ヶ月×2列 */}
+        {MONTHS.map((month, monthIndex) => (
+          <Fragment key={`${project.id}-${month}`}>
+            <TableCell className={cellClass}>
+              <EditableCell
+                value={workHoursData[project.id]?.[month]?.estimatedHours || 0}
+                onCommit={(value) =>
+                  handleCellChange(project.id, month, "estimatedHours", value)
+                }
+                onPaste={(event) =>
+                  handleCellPaste(event, projectIndex, monthIndex, "estimatedHours")
+                }
+                ariaLabel={`${project.code} ${MONTH_NAMES[MONTHS.indexOf(month)]} 予測`}
+              />
+            </TableCell>
+            <TableCell className={cellClass}>
+              <EditableCell
+                value={workHoursData[project.id]?.[month]?.actualHours || 0}
+                onCommit={(value) =>
+                  handleCellChange(project.id, month, "actualHours", value)
+                }
+                onPaste={(event) =>
+                  handleCellPaste(event, projectIndex, monthIndex, "actualHours")
+                }
+                ariaLabel={`${project.code} ${MONTH_NAMES[MONTHS.indexOf(month)]} 実績`}
+              />
+            </TableCell>
+          </Fragment>
+        ))}
+        {/* 年間合計列 */}
+        <TableCell className="text-right font-medium bg-muted border border-muted-foreground/20 px-1 py-0.5 text-sm">
+          {calculateYearTotal(project.id, "estimatedHours").toFixed(1)}h
+        </TableCell>
+        <TableCell className="text-right font-medium bg-muted border border-muted-foreground/20 px-1 py-0.5 text-sm">
+          {calculateYearTotal(project.id, "actualHours").toFixed(1)}h
+        </TableCell>
+      </TableRow>
+    );
   };
 
   const handleVacationChange = (month: number, value: number) => {
@@ -581,8 +715,14 @@ export default function KadminPage() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto pb-6">
-            <Table>
-              <TableHeader>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+              onDragEnd={handleDragEnd}
+            >
+              <Table>
+                <TableHeader>
                 {/* ヘッダー第1行: 月名 */}
                 <TableRow>
                   <TableHead rowSpan={2} className="w-[150px] sticky left-0 bg-background z-10 text-sm">
@@ -613,75 +753,31 @@ export default function KadminPage() {
               </TableHeader>
               <TableBody>
                 {/* プロジェクト行 */}
-                {projects.map((project, projectIndex) => {
-                  const isFirst = projectIndex === 0;
-                  const isLast = projectIndex === projects.length - 1;
-                  return (
-                  <TableRow key={project.id}>
-                    <TableCell className="sticky left-0 bg-background font-medium z-10 border border-muted-foreground/20 px-1 py-0.5 text-sm">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="truncate">{project.name}</span>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={() => handleMoveProject(project.id, "up")}
-                            disabled={isFirst}
-                          >
-                            <ArrowUp className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={() => handleMoveProject(project.id, "down")}
-                            disabled={isLast}
-                          >
-                            <ArrowDown className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </TableCell>
-                    {/* 12ヶ月×2列 */}
-                    {MONTHS.map((month, monthIndex) => (
-                      <Fragment key={`${project.id}-${month}`}>
-                        <TableCell className={cellClass}>
-                          <EditableCell
-                            value={workHoursData[project.id]?.[month]?.estimatedHours || 0}
-                            onCommit={(value) =>
-                              handleCellChange(project.id, month, "estimatedHours", value)
-                            }
-                            onPaste={(event) =>
-                              handleCellPaste(event, projectIndex, monthIndex, "estimatedHours")
-                            }
-                            ariaLabel={`${project.code} ${MONTH_NAMES[MONTHS.indexOf(month)]} 予測`}
-                          />
-                        </TableCell>
-                        <TableCell className={cellClass}>
-                          <EditableCell
-                            value={workHoursData[project.id]?.[month]?.actualHours || 0}
-                            onCommit={(value) =>
-                              handleCellChange(project.id, month, "actualHours", value)
-                            }
-                            onPaste={(event) =>
-                              handleCellPaste(event, projectIndex, monthIndex, "actualHours")
-                            }
-                            ariaLabel={`${project.code} ${MONTH_NAMES[MONTHS.indexOf(month)]} 実績`}
-                          />
-                        </TableCell>
-                      </Fragment>
-                    ))}
-                    {/* 年間合計列 */}
-                    <TableCell className="text-right font-medium bg-muted border border-muted-foreground/20 px-1 py-0.5 text-sm">
-                      {calculateYearTotal(project.id, "estimatedHours").toFixed(1)}h
-                    </TableCell>
-                    <TableCell className="text-right font-medium bg-muted border border-muted-foreground/20 px-1 py-0.5 text-sm">
-                      {calculateYearTotal(project.id, "actualHours").toFixed(1)}h
-                    </TableCell>
-                  </TableRow>
-                );
-                })}
+                <SortableContext
+                  items={projects.map((project) => project.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {projects.map((project, projectIndex) => {
+                    const isFirst = projectIndex === 0;
+                    const isLast = projectIndex === projects.length - 1;
+                    const canMoveUp =
+                      !isFirst &&
+                      getGroupKey(projects[projectIndex - 1]) === getGroupKey(project);
+                    const canMoveDown =
+                      !isLast &&
+                      getGroupKey(projects[projectIndex + 1]) === getGroupKey(project);
+
+                    return (
+                      <SortableProjectRow
+                        key={project.id}
+                        project={project}
+                        projectIndex={projectIndex}
+                        canMoveUp={canMoveUp}
+                        canMoveDown={canMoveDown}
+                      />
+                    );
+                  })}
+                </SortableContext>
 
                 {/* 休暇行 */}
                 <TableRow className="bg-blue-50 dark:bg-blue-950">
@@ -786,6 +882,7 @@ export default function KadminPage() {
                 </TableRow>
               </TableBody>
             </Table>
+          </DndContext>
           </div>
         </CardContent>
       </Card>
