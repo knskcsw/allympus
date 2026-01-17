@@ -114,7 +114,7 @@ export default function DailyTimeEntryTable({
         throw new Error(text || "Failed to import");
       }
       const result = JSON.parse(text);
-      alert(`${result.count}件の稼働実績を登録しました`);
+      void result;
       if (onTemplateImport) {
         onTemplateImport();
       }

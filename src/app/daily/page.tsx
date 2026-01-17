@@ -230,8 +230,6 @@ export default function DailyPage() {
   };
 
   const handleTimeEntryDelete = async (id: string) => {
-    if (!confirm("この稼働実績を削除してもよろしいですか？")) return;
-
     try {
       const response = await fetch(`/api/time-entries/${id}`, {
         method: "DELETE",
@@ -372,12 +370,6 @@ export default function DailyPage() {
   const handleRoutineImport = async () => {
     if (isRoutineImporting) return;
     const hasExisting = routineItems.length > 0;
-    if (
-      hasExisting &&
-      !confirm("既存のルーティンをテンプレートで上書きしますか？")
-    ) {
-      return;
-    }
     setIsRoutineImporting(true);
     try {
       const response = await fetch("/api/morning-routine/import", {

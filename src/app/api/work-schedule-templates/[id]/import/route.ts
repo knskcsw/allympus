@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { startOfDay, endOfDay } from "date-fns";
 import { prisma } from "@/lib/db";
 
 export async function POST(
@@ -41,6 +42,13 @@ export async function POST(
       );
     }
 
+    if (template.items.some((item) => !item.description?.trim())) {
+      return NextResponse.json(
+        { error: "Template item description is required" },
+        { status: 400 }
+      );
+    }
+
     // Parse date and create time entries
     const targetDate = new Date(dateStr);
     if (isNaN(targetDate.getTime())) {
@@ -50,8 +58,47 @@ export async function POST(
       );
     }
 
+    const dayStart = startOfDay(targetDate);
+    const dayEnd = endOfDay(targetDate);
+    const existingSortOrder = await prisma.dailyTask.aggregate({
+      where: {
+        date: {
+          gte: dayStart,
+          lte: dayEnd,
+        },
+      },
+      _max: { sortOrder: true },
+    });
+    let nextSortOrder = (existingSortOrder._max.sortOrder ?? -1) + 1;
+
     const timeEntries = [];
     for (const item of template.items) {
+      const taskTitle = item.description.trim();
+      const existingTask = await prisma.dailyTask.findFirst({
+        where: {
+          title: taskTitle,
+          date: {
+            gte: dayStart,
+            lte: dayEnd,
+          },
+        },
+      });
+
+      let dailyTaskId = existingTask?.id ?? null;
+      if (!dailyTaskId) {
+        const newTask = await prisma.dailyTask.create({
+          data: {
+            date: dayStart,
+            title: taskTitle,
+            status: "TODO",
+            priority: "MEDIUM",
+            sortOrder: nextSortOrder,
+          },
+        });
+        dailyTaskId = newTask.id;
+        nextSortOrder += 1;
+      }
+
       const [startHour, startMinute] = item.startTime.split(":").map(Number);
       const [endHour, endMinute] = item.endTime.split(":").map(Number);
 
@@ -65,10 +112,11 @@ export async function POST(
 
       const timeEntry = await prisma.timeEntry.create({
         data: {
+          dailyTaskId,
           startTime,
           endTime,
           duration,
-          note: item.description || null,
+          note: null,
           projectId: item.projectId,
           wbsId: item.wbsId,
         },
