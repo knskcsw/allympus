@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
     (acc, entry) => {
       // 按分エントリの場合
       if (entry.allocations && entry.allocations.length > 0) {
-        entry.allocations.forEach((alloc: { project?: { name?: string }; wbs?: { name?: string }; percentage: number }) => {
+        entry.allocations.forEach((alloc) => {
           const projectName = alloc.project?.name || "No Project";
           const wbsName = alloc.wbs?.name || "No WBS";
           const key = `${projectName} - ${wbsName}`;
