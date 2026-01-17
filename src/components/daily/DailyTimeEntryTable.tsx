@@ -177,8 +177,8 @@ export default function DailyTimeEntryTable({
     const taskId = entry.routineTaskId
       ? `routine:${entry.routineTaskId}`
       : entry.dailyTaskId
-      ? `daily:${entry.dailyTaskId}`
-      : "";
+        ? `daily:${entry.dailyTaskId}`
+        : "";
     setFormData({
       taskId,
       projectId: entry.projectId || "",
@@ -465,9 +465,9 @@ export default function DailyTimeEntryTable({
                     <TableCell className="text-left">
                       {entry.project && entry.wbs
                         ? `${entry.project.abbreviation || entry.project.code}■${entry.wbs.name}`
-                      : entry.project
-                        ? `${entry.project.code} - ${entry.project.name}`
-                        : "集計なし"}
+                        : entry.project
+                          ? `${entry.project.code} - ${entry.project.name}`
+                          : "集計なし"}
                     </TableCell>
                     <TableCell className="text-left font-mono">
                       <span
@@ -684,13 +684,13 @@ export default function DailyTimeEntryTable({
         open={!!editingEntry}
         onOpenChange={() => setEditingEntry(null)}
       >
-        <DialogContent>
+        <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>稼働実績を編集</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="dailyTask">
+          <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2">
+            <div className="min-w-[220px] flex-1">
+              <Label htmlFor="dailyTask" className="sr-only">
                 タスク <span className="text-destructive">*</span>
               </Label>
               <Select
@@ -703,7 +703,7 @@ export default function DailyTimeEntryTable({
                 }
                 required
               >
-                <SelectTrigger id="dailyTask">
+                <SelectTrigger id="dailyTask" className="h-9">
                   <SelectValue placeholder="タスクを選択してください" />
                 </SelectTrigger>
                 <SelectContent>
@@ -731,8 +731,10 @@ export default function DailyTimeEntryTable({
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="project">プロジェクト</Label>
+            <div className="min-w-[220px] flex-1">
+              <Label htmlFor="project" className="sr-only">
+                プロジェクト
+              </Label>
               <Select
                 value={getProjectSelectValue(formData.projectId, formData.wbsId)}
                 onValueChange={(value) => {
@@ -752,7 +754,7 @@ export default function DailyTimeEntryTable({
                   }
                 }}
               >
-                <SelectTrigger id="project">
+                <SelectTrigger id="project" className="h-9">
                   <SelectValue placeholder="プロジェクトを選択" />
                 </SelectTrigger>
                 <SelectContent>
@@ -771,41 +773,49 @@ export default function DailyTimeEntryTable({
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="startTime">開始時間</Label>
-                <Input
-                  id="startTime"
-                  type="time"
-                  value={formData.startTime}
-                  onChange={(e) =>
-                    setFormData({ ...formData, startTime: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="endTime">終了時間</Label>
-                <Input
-                  id="endTime"
-                  type="time"
-                  value={formData.endTime}
-                  onChange={(e) =>
-                    setFormData({ ...formData, endTime: e.target.value })
-                  }
-                />
-              </div>
+            <div className="w-32">
+              <Label htmlFor="startTime" className="sr-only">
+                開始時間
+              </Label>
+              <Input
+                id="startTime"
+                type="time"
+                value={formData.startTime}
+                onChange={(e) =>
+                  setFormData({ ...formData, startTime: e.target.value })
+                }
+                required
+                className="h-9 text-left tabular-nums"
+              />
+            </div>
+            <div className="w-32">
+              <Label htmlFor="endTime" className="sr-only">
+                終了時間
+              </Label>
+              <Input
+                id="endTime"
+                type="time"
+                value={formData.endTime}
+                onChange={(e) =>
+                  setFormData({ ...formData, endTime: e.target.value })
+                }
+                className="h-9 text-left tabular-nums"
+              />
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className="flex gap-2">
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
+                className="h-9"
                 onClick={() => setEditingEntry(null)}
               >
                 キャンセル
               </Button>
-              <Button type="submit">更新</Button>
+              <Button type="submit" size="sm" className="h-9">
+                更新
+              </Button>
             </div>
           </form>
         </DialogContent>
