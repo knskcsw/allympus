@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Pencil } from "lucide-react";
 import { format, addDays, subDays, startOfDay, startOfToday } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,7 @@ interface DailyAttendanceBannerProps {
   onClockOut?: () => void;
   showClockOut?: boolean;
   onAttendanceUpdated?: () => void;
+  additionalBreakMinutes?: number;
 }
 
 export default function DailyAttendanceBanner({
@@ -45,6 +46,7 @@ export default function DailyAttendanceBanner({
   onClockOut,
   showClockOut = false,
   onAttendanceUpdated,
+  additionalBreakMinutes = 0,
 }: DailyAttendanceBannerProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [formState, setFormState] = useState({
@@ -56,22 +58,24 @@ export default function DailyAttendanceBanner({
     note: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Calculate total working hours
-  const calculateWorkingHours = () => {
+  const getClockRange = () => {
     if (!attendance || !attendance.clockIn) return 0;
 
     const start = new Date(attendance.clockIn);
     const end = attendance.clockOut
       ? new Date(attendance.clockOut)
       : new Date();
-
-    const totalMinutes =
-      (end.getTime() - start.getTime()) / (1000 * 60) - attendance.breakMinutes;
-
-    return totalMinutes / 60; // Return as hours
+    return (end.getTime() - start.getTime()) / (1000 * 60);
   };
 
-  const workingHours = calculateWorkingHours();
+  const totalBreakMinutes =
+    (attendance?.breakMinutes ?? 0) + additionalBreakMinutes;
+  const stayMinutes = getClockRange();
+  const workingHours =
+    stayMinutes > 0
+      ? Math.max(0, (stayMinutes - totalBreakMinutes) / 60)
+      : 0;
+  const stayHours = stayMinutes > 0 ? stayMinutes / 60 : 0;
 
   const handlePrevDay = () => {
     onDateChange(subDays(currentDate, 1));
@@ -233,7 +237,7 @@ export default function DailyAttendanceBanner({
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-muted-foreground">休憩:</span>
-                  <span className="font-medium">{attendance.breakMinutes}分</span>
+                  <span className="font-medium">{totalBreakMinutes}分</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-muted-foreground">出社形態:</span>
@@ -249,6 +253,10 @@ export default function DailyAttendanceBanner({
                       ? `${attendance.sleepHours}h`
                       : "-"}
                   </span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground">滞在:</span>
+                  <span className="font-semibold">{stayHours.toFixed(2)}h</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-muted-foreground">総労働:</span>
@@ -269,11 +277,13 @@ export default function DailyAttendanceBanner({
             )}
             {attendance && (
               <Button
-                size="sm"
+                size="icon"
                 variant="ghost"
+                className="h-8 w-8"
                 onClick={() => setIsEditing((prev) => !prev)}
+                aria-label={isEditing ? "閉じる" : "編集"}
               >
-                {isEditing ? "閉じる" : "Edit"}
+                <Pencil className="h-4 w-4" />
               </Button>
             )}
           </div>

@@ -344,6 +344,22 @@ export default function DailyTimeEntryTable({
     }))
   );
 
+  const isBreakProject = (project?: { code?: string; name?: string; abbreviation?: string | null }) => {
+    if (!project) return false;
+    const labels = [project.code, project.name, project.abbreviation]
+      .filter((value): value is string => Boolean(value))
+      .map((value) => value.toLowerCase());
+    return labels.some((value) => value === "休憩" || value === "break");
+  };
+  const breakProject = projects.find(isBreakProject);
+  const breakProjectOption = breakProject
+    ? { value: `${breakProject.id}|||`, label: "休憩" }
+    : null;
+  const getProjectSelectValue = (projectId: string, wbsId: string) => {
+    if (!projectId) return "none";
+    return wbsId ? `${projectId}|||${wbsId}` : `${projectId}|||`;
+  };
+
   // Format duration to decimal hours (e.g., 1.5)
   const formatDurationHours = (seconds: number | null): string => {
     if (!seconds) return "0.00";
@@ -430,7 +446,11 @@ export default function DailyTimeEntryTable({
                 </TableRow>
               ) : (
                 entries.map((entry) => (
-                  <TableRow key={entry.id}>
+                  <TableRow
+                    key={entry.id}
+                    className="cursor-pointer hover:bg-muted/40"
+                    onClick={() => handleEdit(entry)}
+                  >
                     <TableCell className="text-left">
                       {entry.dailyTask?.title ||
                         entry.routineTask?.title ||
@@ -471,7 +491,10 @@ export default function DailyTimeEntryTable({
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => handleEdit(entry)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleEdit(entry);
+                          }}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -479,7 +502,10 @@ export default function DailyTimeEntryTable({
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive"
-                          onClick={() => onDelete(entry.id)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onDelete(entry.id);
+                          }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -573,7 +599,10 @@ export default function DailyTimeEntryTable({
 
               <div className="flex-1">
                 <Select
-                  value={createFormData.projectId && createFormData.wbsId ? `${createFormData.projectId}|||${createFormData.wbsId}` : "none"}
+                  value={getProjectSelectValue(
+                    createFormData.projectId,
+                    createFormData.wbsId
+                  )}
                   onValueChange={(value) => {
                     if (value === "none") {
                       setCreateFormData({
@@ -582,7 +611,7 @@ export default function DailyTimeEntryTable({
                         wbsId: "",
                       });
                     } else {
-                      const [projectId, wbsId] = value.split("|||");
+                      const [projectId, wbsId = ""] = value.split("|||");
                       setCreateFormData({
                         ...createFormData,
                         projectId,
@@ -596,6 +625,11 @@ export default function DailyTimeEntryTable({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">集計なし</SelectItem>
+                    {breakProjectOption && (
+                      <SelectItem value={breakProjectOption.value}>
+                        {breakProjectOption.label}
+                      </SelectItem>
+                    )}
                     {projectWbsOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
@@ -694,7 +728,7 @@ export default function DailyTimeEntryTable({
             <div>
               <Label htmlFor="project">プロジェクト</Label>
               <Select
-                value={formData.projectId && formData.wbsId ? `${formData.projectId}|||${formData.wbsId}` : "none"}
+                value={getProjectSelectValue(formData.projectId, formData.wbsId)}
                 onValueChange={(value) => {
                   if (value === "none") {
                     setFormData({
@@ -703,7 +737,7 @@ export default function DailyTimeEntryTable({
                       wbsId: "",
                     });
                   } else {
-                    const [projectId, wbsId] = value.split("|||");
+                    const [projectId, wbsId = ""] = value.split("|||");
                     setFormData({
                       ...formData,
                       projectId,
@@ -717,6 +751,11 @@ export default function DailyTimeEntryTable({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">集計なし</SelectItem>
+                  {breakProjectOption && (
+                    <SelectItem value={breakProjectOption.value}>
+                      {breakProjectOption.label}
+                    </SelectItem>
+                  )}
                   {editProjectWbsOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
