@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ChevronUp, Plus, Trash2, Edit2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Trash2, Pencil } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Select,
   SelectContent,
@@ -57,6 +58,11 @@ export default function WorkScheduleTemplates() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(true);
+  const [pendingDelete, setPendingDelete] = useState<
+    | { kind: "template"; id: string }
+    | { kind: "item"; id: string }
+    | null
+  >(null);
   const [newTemplateName, setNewTemplateName] = useState("");
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [editingTemplateName, setEditingTemplateName] = useState("");
@@ -74,8 +80,8 @@ export default function WorkScheduleTemplates() {
     setIsLoading(true);
     try {
       const [templatesResponse, projectsResponse] = await Promise.all([
-        fetch("/api/work-schedule-templates"),
-        fetch("/api/projects"),
+        fetch("/api/work-schedule-templates", { cache: "no-store" }),
+        fetch("/api/projects", { cache: "no-store" }),
       ]);
       const [templatesData, projectsData] = await Promise.all([
         parseJsonResponse(templatesResponse),
@@ -136,8 +142,6 @@ export default function WorkScheduleTemplates() {
   };
 
   const handleDeleteTemplate = async (id: string) => {
-    if (!confirm("このテンプレートを削除してもよろしいですか？")) return;
-
     try {
       const response = await fetch(`/api/work-schedule-templates/${id}`, {
         method: "DELETE",
@@ -183,8 +187,6 @@ export default function WorkScheduleTemplates() {
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    if (!confirm("このアイテムを削除してもよろしいですか？")) return;
-
     try {
       const response = await fetch(`/api/work-schedule-templates/items/${itemId}`, {
         method: "DELETE",
@@ -233,6 +235,31 @@ export default function WorkScheduleTemplates() {
 
   return (
     <Card>
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        title={
+          pendingDelete?.kind === "template"
+            ? "このテンプレートを削除してもよろしいですか？"
+            : "このアイテムを削除してもよろしいですか？"
+        }
+        description="この操作は取り消しできません。"
+        confirmText="削除"
+        cancelText="キャンセル"
+        confirmVariant="destructive"
+        onConfirm={() => {
+          const current = pendingDelete;
+          if (!current) return;
+          setPendingDelete(null);
+          if (current.kind === "template") {
+            void handleDeleteTemplate(current.id);
+          } else {
+            void handleDeleteItem(current.id);
+          }
+        }}
+      />
       <CardHeader
         className={`flex flex-row items-center justify-between cursor-pointer ${
           isOpen ? "" : "py-3"
@@ -303,21 +330,31 @@ export default function WorkScheduleTemplates() {
                             {template.name}
                           </span>
                           <Button
-                            size="sm"
+                            type="button"
                             variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
                             onClick={() => {
                               setEditingTemplateId(template.id);
                               setEditingTemplateName(template.name);
                             }}
+                            aria-label="編集"
                           >
-                            <Edit2 className="h-4 w-4" />
+                            <Pencil className="h-3.5 w-3.5" />
                           </Button>
                           <Button
-                            size="sm"
+                            type="button"
                             variant="ghost"
-                            onClick={() => handleDeleteTemplate(template.id)}
+                            size="icon"
+                            className="h-7 w-7 text-destructive"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setPendingDelete({ kind: "template", id: template.id });
+                            }}
+                            aria-label="削除"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             size="sm"
@@ -350,9 +387,16 @@ export default function WorkScheduleTemplates() {
                               </span>
                             )}
                             <Button
-                              size="sm"
+                              type="button"
                               variant="ghost"
-                              onClick={() => handleDeleteItem(item.id)}
+                              size="icon-sm"
+                              className="text-destructive"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setPendingDelete({ kind: "item", id: item.id });
+                              }}
+                              aria-label="削除"
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
