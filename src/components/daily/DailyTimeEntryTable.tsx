@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 
@@ -61,6 +61,8 @@ interface DailyTimeEntryTableProps {
   selectedDate: Date;
   attendanceClockIn?: Date | string | null;
   attendanceClockOut?: Date | string | null;
+  workScheduleTemplates?: Array<{ id: string; name: string }>;
+  onTemplateImport?: () => void;
 }
 
 export default function DailyTimeEntryTable({
@@ -74,6 +76,8 @@ export default function DailyTimeEntryTable({
   selectedDate,
   attendanceClockIn = null,
   attendanceClockOut = null,
+  workScheduleTemplates = [],
+  onTemplateImport,
 }: DailyTimeEntryTableProps) {
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [formData, setFormData] = useState({
@@ -93,6 +97,33 @@ export default function DailyTimeEntryTable({
     endTime: "",
   });
   const [isCreating, setIsCreating] = useState(false);
+  const [importingTemplateId, setImportingTemplateId] = useState<string | null>(null);
+
+  const handleTemplateImport = async (templateId: string) => {
+    setImportingTemplateId(templateId);
+    try {
+      const dateStr = selectedDate.toISOString().split("T")[0];
+      const response = await fetch(`/api/work-schedule-templates/${templateId}/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: dateStr }),
+      });
+      const text = await response.text();
+      if (!response.ok) {
+        throw new Error(text || "Failed to import");
+      }
+      const result = JSON.parse(text);
+      alert(`${result.count}件の稼働実績を登録しました`);
+      if (onTemplateImport) {
+        onTemplateImport();
+      }
+    } catch (error) {
+      console.error("Failed to import template:", error);
+      alert("テンプレートのインポートに失敗しました");
+    } finally {
+      setImportingTemplateId(null);
+    }
+  };
 
   // 前の実績の終了時間を開始時間のデフォルト値にセット
   useEffect(() => {
@@ -340,8 +371,24 @@ export default function DailyTimeEntryTable({
   return (
     <>
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>稼働実績</CardTitle>
+          {workScheduleTemplates.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {workScheduleTemplates.map((template) => (
+                <Button
+                  key={template.id}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleTemplateImport(template.id)}
+                  disabled={importingTemplateId !== null}
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  {importingTemplateId === template.id ? "..." : template.name}
+                </Button>
+              ))}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <Table className="[&_th]:text-left [&_td]:text-left">

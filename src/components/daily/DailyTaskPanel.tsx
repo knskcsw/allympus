@@ -72,10 +72,26 @@ export default function DailyTaskPanel({
     e.preventDefault();
 
     const data = {
-      title: formData.title,
+      title: formData.title.trim(),
       description: formData.description || null,
       priority: formData.priority,
     };
+
+    // Check for duplicate task name
+    if (!editingTask) {
+      const isDuplicate = tasks.some(task => task.title === data.title);
+      if (isDuplicate) {
+        alert("同じ名前のタスクが既に存在します");
+        return;
+      }
+    } else {
+      // When editing, check if the new name conflicts with other tasks
+      const isDuplicate = tasks.some(task => task.id !== editingTask.id && task.title === data.title);
+      if (isDuplicate) {
+        alert("同じ名前のタスクが既に存在します");
+        return;
+      }
+    }
 
     if (editingTask) {
       onTaskUpdate(editingTask.id, data);

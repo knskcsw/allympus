@@ -6,7 +6,6 @@ import DailyAttendanceBanner from "@/components/daily/DailyAttendanceBanner";
 import DailyTaskPanel from "@/components/daily/DailyTaskPanel";
 import DailyTimeEntryTable from "@/components/daily/DailyTimeEntryTable";
 import WbsSummaryCard from "@/components/daily/WbsSummaryCard";
-import WorkScheduleTemplateImporter from "@/components/daily/WorkScheduleTemplateImporter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +24,7 @@ export default function DailyPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [data, setData] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
+  const [workScheduleTemplates, setWorkScheduleTemplates] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [checkInTime, setCheckInTime] = useState(
@@ -101,10 +101,25 @@ export default function DailyPage() {
     }
   }, []);
 
+  // Fetch work schedule templates
+  const fetchWorkScheduleTemplates = useCallback(async () => {
+    try {
+      const response = await fetch("/api/work-schedule-templates");
+      const responseText = await response.text();
+      if (response.ok) {
+        const templatesData = responseText ? JSON.parse(responseText) : [];
+        setWorkScheduleTemplates(templatesData);
+      }
+    } catch (error) {
+      console.error("Failed to fetch work schedule templates:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchDailyData();
     fetchProjects();
-  }, [fetchDailyData, fetchProjects]);
+    fetchWorkScheduleTemplates();
+  }, [fetchDailyData, fetchProjects, fetchWorkScheduleTemplates]);
 
   useEffect(() => {
     const today = startOfDay(new Date());
@@ -134,9 +149,18 @@ export default function DailyPage() {
 
       if (response.ok) {
         fetchDailyData();
+      } else {
+        const errorText = await response.text();
+        try {
+          const errorData = JSON.parse(errorText);
+          alert(errorData.error || "タスクの作成に失敗しました");
+        } catch {
+          alert("タスクの作成に失敗しました");
+        }
       }
     } catch (error) {
       console.error("Failed to create task:", error);
+      alert("タスクの作成に失敗しました");
     }
   };
 
@@ -726,10 +750,6 @@ export default function DailyPage() {
                 </CardContent>
               )}
             </Card>
-            <WorkScheduleTemplateImporter
-              selectedDate={selectedDate}
-              onImportComplete={fetchDailyData}
-            />
             <WbsSummaryCard
               summary={data.wbsSummary || []}
               totalWorkingHours={totalWorkingHours}
@@ -761,6 +781,8 @@ export default function DailyPage() {
                 selectedDate={selectedDate}
                 attendanceClockIn={data.attendance?.clockIn ?? null}
                 attendanceClockOut={data.attendance?.clockOut ?? null}
+                workScheduleTemplates={workScheduleTemplates}
+                onTemplateImport={fetchDailyData}
               />
             </div>
           </div>

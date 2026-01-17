@@ -110,6 +110,7 @@ model DailyTask {
 
   timeEntries TimeEntry[]
 
+  @@unique([date, title])
   @@index([date])
   @@index([status])
   @@map("daily_tasks")

@@ -55,7 +55,7 @@ export default function WorkScheduleTemplates() {
   const [templates, setTemplates] = useState<WorkScheduleTemplate[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const [newTemplateName, setNewTemplateName] = useState("");
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [editingTemplateName, setEditingTemplateName] = useState("");
@@ -214,6 +214,19 @@ export default function WorkScheduleTemplates() {
 
   const selectedProject = projects.find((p) => p.id === newItemProjectId);
 
+  // Create project/WBS options like in DailyTimeEntryTable
+  const projectWbsOptions: Array<{ value: string; label: string }> = [];
+  for (const project of projects) {
+    if (project.wbsList && project.wbsList.length > 0) {
+      for (const wbs of project.wbsList) {
+        projectWbsOptions.push({
+          value: `${project.id}|||${wbs.id}`,
+          label: `${project.code} / ${wbs.name}`,
+        });
+      }
+    }
+  }
+
   return (
     <Card>
       <CardHeader
@@ -223,7 +236,7 @@ export default function WorkScheduleTemplates() {
         onClick={() => setIsOpen(!isOpen)}
       >
         <CardTitle className={isOpen ? "" : "text-base"}>
-          稼働実績テンプレート
+          Work Schedule Templates
         </CardTitle>
         <Button size="sm" variant="ghost" onClick={(e) => {
           e.stopPropagation();
@@ -279,7 +292,12 @@ export default function WorkScheduleTemplates() {
                         </>
                       ) : (
                         <>
-                          <span className="flex-1 font-medium">{template.name}</span>
+                          <span
+                            className="flex-1 font-medium cursor-pointer hover:text-primary"
+                            onClick={() => toggleTemplateExpanded(template.id)}
+                          >
+                            {template.name}
+                          </span>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -338,69 +356,58 @@ export default function WorkScheduleTemplates() {
                         ))}
 
                         {addingItemToTemplate === template.id ? (
-                          <div className="space-y-2 p-2 bg-muted rounded">
-                            <div className="grid grid-cols-2 gap-2">
+                          <div className="p-2 bg-muted rounded">
+                            <div className="flex gap-2 items-start">
+                              <Input
+                                value={newItemDescription}
+                                onChange={(e) => setNewItemDescription(e.target.value)}
+                                placeholder="タスク名"
+                                className="flex-1"
+                              />
+                              <Select
+                                value={newItemProjectId && newItemWbsId ? `${newItemProjectId}|||${newItemWbsId}` : "none"}
+                                onValueChange={(value) => {
+                                  if (value === "none") {
+                                    setNewItemProjectId("");
+                                    setNewItemWbsId("");
+                                  } else {
+                                    const [projectId, wbsId] = value.split("|||");
+                                    setNewItemProjectId(projectId);
+                                    setNewItemWbsId(wbsId);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="w-[200px]">
+                                  <SelectValue placeholder="Project / WBS" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">集計なし</SelectItem>
+                                  {projectWbsOptions.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                               <Input
                                 type="time"
                                 value={newItemStartTime}
                                 onChange={(e) => setNewItemStartTime(e.target.value)}
-                                placeholder="開始時刻"
+                                placeholder="Start"
+                                className="w-32"
                               />
                               <Input
                                 type="time"
                                 value={newItemEndTime}
                                 onChange={(e) => setNewItemEndTime(e.target.value)}
-                                placeholder="終了時刻"
+                                placeholder="End"
+                                className="w-32"
                               />
-                            </div>
-                            <Input
-                              value={newItemDescription}
-                              onChange={(e) => setNewItemDescription(e.target.value)}
-                              placeholder="作業内容"
-                            />
-                            <Select
-                              value={newItemProjectId}
-                              onValueChange={(value) => {
-                                setNewItemProjectId(value);
-                                setNewItemWbsId("");
-                              }}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="プロジェクト（任意）" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="">なし</SelectItem>
-                                {projects.map((project) => (
-                                  <SelectItem key={project.id} value={project.id}>
-                                    {project.code} - {project.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {selectedProject && selectedProject.wbsList.length > 0 && (
-                              <Select
-                                value={newItemWbsId}
-                                onValueChange={setNewItemWbsId}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="WBS（任意）" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="">なし</SelectItem>
-                                  {selectedProject.wbsList.map((wbs) => (
-                                    <SelectItem key={wbs.id} value={wbs.id}>
-                                      {wbs.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                            <div className="flex gap-2">
                               <Button
                                 size="sm"
                                 onClick={() => handleAddItem(template.id)}
                               >
-                                追加
+                                Add
                               </Button>
                               <Button
                                 size="sm"
@@ -414,7 +421,7 @@ export default function WorkScheduleTemplates() {
                                   setNewItemWbsId("");
                                 }}
                               >
-                                キャンセル
+                                ×
                               </Button>
                             </div>
                           </div>
@@ -422,7 +429,10 @@ export default function WorkScheduleTemplates() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => setAddingItemToTemplate(template.id)}
+                            onClick={() => {
+                              setAddingItemToTemplate(template.id);
+                              setNewItemDescription(template.name);
+                            }}
                             className="w-full"
                           >
                             <Plus className="h-4 w-4 mr-1" />

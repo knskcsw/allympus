@@ -68,7 +68,7 @@ export async function POST(
           startTime,
           endTime,
           duration,
-          note: item.description,
+          note: item.description || null,
           projectId: item.projectId,
           wbsId: item.wbsId,
         },

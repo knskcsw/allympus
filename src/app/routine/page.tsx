@@ -483,9 +483,8 @@ export default function RoutinePage() {
             </div>
           </CardContent>
         </Card>
+        <WorkScheduleTemplates />
       </div>
-
-      <WorkScheduleTemplates />
     </div>
   );
 }
