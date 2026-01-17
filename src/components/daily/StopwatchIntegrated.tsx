@@ -24,6 +24,7 @@ interface Project {
   code: string;
   name: string;
   abbreviation: string | null;
+  sortOrder?: number | null;
   wbsList?: Wbs[];
 }
 
@@ -73,7 +74,10 @@ export default function StopwatchIntegrated({
     setProjects(data);
 
     // Flatten WBS list from all projects
-    const allWbs = data.flatMap((project: Project & { wbsList: Wbs[] }) =>
+    const orderedProjects = [...data].sort(
+      (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+    );
+    const allWbs = orderedProjects.flatMap((project: Project & { wbsList: Wbs[] }) =>
       project.wbsList.map((wbs) => ({
         ...wbs,
         projectId: project.id,
@@ -205,7 +209,9 @@ export default function StopwatchIntegrated({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">集計なし</SelectItem>
-                {projects.map((project) =>
+                {[...projects]
+                  .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+                  .map((project) =>
                   project.wbsList && project.wbsList.length > 0 ? (
                     project.wbsList.map((wbs: Wbs) => (
                       <SelectItem

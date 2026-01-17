@@ -53,6 +53,8 @@ interface DailyTimeEntryTableProps {
     id: string;
     code: string;
     name: string;
+    abbreviation?: string | null;
+    sortOrder?: number | null;
     wbsList: Array<{ id: string; name: string }>;
   }>;
   onUpdate: (id: string, data: any) => void;
@@ -324,23 +326,27 @@ export default function DailyTimeEntryTable({
   const selectedCreateProject = projects.find((p) => p.id === createFormData.projectId);
   const createWbsList = selectedCreateProject?.wbsList || [];
 
+  const orderedProjects = [...projects].sort(
+    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+  );
+
   // プロジェクト×WBSの統合リストを作成
-  const projectWbsOptions = projects.flatMap(project =>
+  const projectWbsOptions = orderedProjects.flatMap(project =>
     project.wbsList.map(wbs => ({
       projectId: project.id,
       wbsId: wbs.id,
       value: `${project.id}|||${wbs.id}`,
-      label: `${project.code}■${wbs.name}`,
+      label: `${project.abbreviation || project.code}■${wbs.name}`,
     }))
   );
 
   // 編集フォーム用の統合リスト
-  const editProjectWbsOptions = projects.flatMap(project =>
+  const editProjectWbsOptions = orderedProjects.flatMap(project =>
     project.wbsList.map(wbs => ({
       projectId: project.id,
       wbsId: wbs.id,
       value: `${project.id}|||${wbs.id}`,
-      label: `${project.code}■${wbs.name}`,
+      label: `${project.abbreviation || project.code}■${wbs.name}`,
     }))
   );
 
