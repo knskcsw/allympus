@@ -54,11 +54,15 @@ export async function GET(request: NextRequest) {
               gte: startDate,
               lte: endDate,
             },
-            projectId: {
-              not: null,
-            },
             endTime: {
               not: null,
+            },
+          },
+          include: {
+            allocations: {
+              include: {
+                project: true,
+              },
             },
           },
           orderBy: {
@@ -125,10 +129,22 @@ export async function GET(request: NextRequest) {
     }
 
     for (const entry of timeEntries) {
-      if (!entry.projectId) continue;
       const dayKey = format(entry.startTime, "yyyy-MM-dd");
-      if (actualByProject[entry.projectId]) {
-        actualByProject[entry.projectId][dayKey] += (entry.duration || 0) / 3600;
+
+      // 按分エントリの場合
+      if (entry.allocations && entry.allocations.length > 0) {
+        entry.allocations.forEach((alloc: { projectId: string; percentage: number }) => {
+          if (actualByProject[alloc.projectId]) {
+            const allocatedHours = ((entry.duration || 0) / 3600) * (alloc.percentage / 100);
+            actualByProject[alloc.projectId][dayKey] += allocatedHours;
+          }
+        });
+      }
+      // シンプルエントリの場合（後方互換性）
+      else if (entry.projectId) {
+        if (actualByProject[entry.projectId]) {
+          actualByProject[entry.projectId][dayKey] += (entry.duration || 0) / 3600;
+        }
       }
     }
 

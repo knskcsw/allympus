@@ -25,9 +25,20 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Pencil, Trash2, Download } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Pencil, Trash2, Download, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
+
+interface AllocationEntry {
+  id: string;
+  timeEntryId: string;
+  projectId: string;
+  project?: { id: string; code: string; name: string; abbreviation: string | null };
+  wbsId: string | null;
+  wbs?: { id: string; name: string } | null;
+  percentage: number;
+}
 
 interface TimeEntry {
   id: string;
@@ -43,6 +54,7 @@ interface TimeEntry {
   endTime: Date | null;
   duration: number | null;
   note: string | null;
+  allocations?: AllocationEntry[];
 }
 
 interface DailyTimeEntryTableProps {
@@ -82,6 +94,14 @@ export default function DailyTimeEntryTable({
   onTemplateImport,
 }: DailyTimeEntryTableProps) {
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [isAllocationMode, setIsAllocationMode] = useState(false);
+  const [allocations, setAllocations] = useState<Array<{
+    id: string;
+    projectId: string;
+    wbsId: string;
+    percentage: number;
+  }>>([]);
   const [formData, setFormData] = useState({
     taskId: "",
     projectId: "",
@@ -99,6 +119,61 @@ export default function DailyTimeEntryTable({
   });
   const [isCreating, setIsCreating] = useState(false);
   const [importingTemplateId, setImportingTemplateId] = useState<string | null>(null);
+
+  const toggleExpand = (entryId: string) => {
+    setExpandedRows((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(entryId)) {
+        newSet.delete(entryId);
+      } else {
+        newSet.add(entryId);
+      }
+      return newSet;
+    });
+  };
+
+  const addAllocation = () => {
+    setAllocations([
+      ...allocations,
+      {
+        id: `temp-${Date.now()}`,
+        projectId: "",
+        wbsId: "",
+        percentage: 0,
+      },
+    ]);
+  };
+
+  const removeAllocation = (id: string) => {
+    setAllocations(allocations.filter((a) => a.id !== id));
+  };
+
+  const updateAllocation = (
+    id: string,
+    field: "projectId" | "wbsId" | "percentage",
+    value: string | number
+  ) => {
+    setAllocations(
+      allocations.map((a) =>
+        a.id === id ? { ...a, [field]: value } : a
+      )
+    );
+  };
+
+  const updateAllocationMultiple = (
+    id: string,
+    updates: { projectId?: string; wbsId?: string; percentage?: number }
+  ) => {
+    setAllocations(
+      allocations.map((a) =>
+        a.id === id ? { ...a, ...updates } : a
+      )
+    );
+  };
+
+  const getTotalPercentage = () => {
+    return allocations.reduce((sum, a) => sum + a.percentage, 0);
+  };
 
   const handleTemplateImport = async (templateId: string) => {
     setImportingTemplateId(templateId);
@@ -179,17 +254,48 @@ export default function DailyTimeEntryTable({
       : entry.dailyTaskId
         ? `daily:${entry.dailyTaskId}`
         : "";
-    setFormData({
-      taskId,
-      projectId: entry.projectId || "",
-      wbsId: entry.wbsId || "",
-      startTime: entry.startTime
-        ? format(new Date(entry.startTime), "HH:mm")
-        : "",
-      endTime: entry.endTime
-        ? format(new Date(entry.endTime), "HH:mm")
-        : "",
-    });
+
+    // 按分データがあるかチェック
+    const hasAllocations = entry.allocations && entry.allocations.length > 0;
+
+    if (hasAllocations) {
+      // 按分モードON
+      setIsAllocationMode(true);
+      setAllocations(
+        entry.allocations!.map((alloc) => ({
+          id: alloc.id,
+          projectId: alloc.projectId,
+          wbsId: alloc.wbsId || "",
+          percentage: alloc.percentage,
+        }))
+      );
+      setFormData({
+        taskId,
+        projectId: "",
+        wbsId: "",
+        startTime: entry.startTime
+          ? format(new Date(entry.startTime), "HH:mm")
+          : "",
+        endTime: entry.endTime
+          ? format(new Date(entry.endTime), "HH:mm")
+          : "",
+      });
+    } else {
+      // シンプルモード
+      setIsAllocationMode(false);
+      setAllocations([]);
+      setFormData({
+        taskId,
+        projectId: entry.projectId || "",
+        wbsId: entry.wbsId || "",
+        startTime: entry.startTime
+          ? format(new Date(entry.startTime), "HH:mm")
+          : "",
+        endTime: entry.endTime
+          ? format(new Date(entry.endTime), "HH:mm")
+          : "",
+      });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -200,6 +306,27 @@ export default function DailyTimeEntryTable({
     if (!formData.taskId || formData.taskId === "none") {
       alert("タスクを選択してください");
       return;
+    }
+
+    // 按分モードの場合、バリデーション
+    if (isAllocationMode) {
+      if (allocations.length === 0) {
+        alert("按分を1件以上追加してください");
+        return;
+      }
+
+      const totalPercentage = allocations.reduce((sum, a) => sum + a.percentage, 0);
+      if (Math.abs(totalPercentage - 100) > 0.01) {
+        alert(`按分率の合計は100%にしてください（現在: ${totalPercentage.toFixed(1)}%）`);
+        return;
+      }
+
+      // 按分データに空のプロジェクトがないかチェック
+      const hasEmptyProject = allocations.some((a) => !a.projectId);
+      if (hasEmptyProject) {
+        alert("全ての按分にプロジェクトを選択してください");
+        return;
+      }
     }
 
     // Convert time strings to full DateTime
@@ -220,15 +347,33 @@ export default function DailyTimeEntryTable({
         ? { routineTaskId: taskIdValue, dailyTaskId: null }
         : { dailyTaskId: taskIdValue, routineTaskId: null };
 
-    onUpdate(editingEntry.id, {
+    const updatePayload: Record<string, unknown> = {
       ...taskPayload,
-      projectId: formData.projectId || null,
-      wbsId: formData.wbsId || null,
       startTime: startDate.toISOString(),
       endTime: endDate ? endDate.toISOString() : null,
-    });
+    };
+
+    // 按分モードの場合はallocationsを送信
+    if (isAllocationMode) {
+      updatePayload.allocations = allocations.map((a) => ({
+        projectId: a.projectId,
+        wbsId: a.wbsId || null,
+        percentage: a.percentage,
+      }));
+      updatePayload.projectId = null;
+      updatePayload.wbsId = null;
+    } else {
+      // シンプルモードの場合は通常通り
+      updatePayload.projectId = formData.projectId || null;
+      updatePayload.wbsId = formData.wbsId || null;
+      updatePayload.allocations = [];
+    }
+
+    onUpdate(editingEntry.id, updatePayload);
 
     setEditingEntry(null);
+    setIsAllocationMode(false);
+    setAllocations([]);
   };
 
   const handleCreateSubmit = (e: React.FormEvent) => {
@@ -451,74 +596,138 @@ export default function DailyTimeEntryTable({
                   </TableCell>
                 </TableRow>
               ) : (
-                entries.map((entry) => (
-                  <TableRow
-                    key={entry.id}
-                    className="cursor-pointer hover:bg-muted/40"
-                    onClick={() => handleEdit(entry)}
-                  >
-                    <TableCell className="text-left">
-                      {entry.dailyTask?.title ||
-                        entry.routineTask?.title ||
-                        "タスクなし"}
-                    </TableCell>
-                    <TableCell className="text-left">
-                      {entry.project && entry.wbs
-                        ? `${entry.project.abbreviation || entry.project.code}■${entry.wbs.name}`
-                        : entry.project
-                          ? `${entry.project.code} - ${entry.project.name}`
-                          : "集計なし"}
-                    </TableCell>
-                    <TableCell className="text-left font-mono">
-                      <span
-                        className={
-                          timeWarnings[entry.id]?.start ? "text-destructive" : ""
-                        }
-                      >
-                        {format(new Date(entry.startTime), "HH:mm")}
-                      </span>
-                      {" - "}
-                      <span
-                        className={
-                          timeWarnings[entry.id]?.end ? "text-destructive" : ""
-                        }
-                      >
-                        {entry.endTime
-                          ? format(new Date(entry.endTime), "HH:mm")
-                          : "進行中"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-left font-mono font-semibold">
-                      {formatDurationHours(entry.duration)}h
-                    </TableCell>
-                    <TableCell className="text-left">
-                      <div className="flex justify-start gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleEdit(entry);
-                          }}
+                entries.flatMap((entry) => {
+                  const hasAllocations = entry.allocations && entry.allocations.length > 0;
+                  const isExpanded = expandedRows.has(entry.id);
+                  const rows = [];
+
+                  // 親行
+                  rows.push(
+                    <TableRow
+                      key={entry.id}
+                      className="cursor-pointer hover:bg-muted/40"
+                      onClick={() => handleEdit(entry)}
+                    >
+                      <TableCell className="text-left">
+                        <div className="flex items-center gap-2">
+                          {hasAllocations && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpand(entry.id);
+                              }}
+                              className="hover:bg-muted rounded p-1"
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </button>
+                          )}
+                          <span>
+                            {entry.dailyTask?.title ||
+                              entry.routineTask?.title ||
+                              "タスクなし"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-left">
+                        {hasAllocations ? (
+                          <span className="text-muted-foreground">
+                            按分: {entry.allocations!.length}件
+                          </span>
+                        ) : entry.project && entry.wbs ? (
+                          `${entry.project.abbreviation || entry.project.code}■${entry.wbs.name}`
+                        ) : entry.project ? (
+                          `${entry.project.code} - ${entry.project.name}`
+                        ) : (
+                          "集計なし"
+                        )}
+                      </TableCell>
+                      <TableCell className="text-left font-mono">
+                        <span
+                          className={
+                            timeWarnings[entry.id]?.start ? "text-destructive" : ""
+                          }
                         >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onDelete(entry.id);
-                          }}
+                          {format(new Date(entry.startTime), "HH:mm")}
+                        </span>
+                        {" - "}
+                        <span
+                          className={
+                            timeWarnings[entry.id]?.end ? "text-destructive" : ""
+                          }
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                          {entry.endTime
+                            ? format(new Date(entry.endTime), "HH:mm")
+                            : "進行中"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-left font-mono font-semibold">
+                        {formatDurationHours(entry.duration)}h
+                      </TableCell>
+                      <TableCell className="text-left">
+                        <div className="flex justify-start gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleEdit(entry);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onDelete(entry.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+
+                  // 按分詳細行（展開時のみ）
+                  if (hasAllocations && isExpanded) {
+                    entry.allocations!.forEach((alloc) => {
+                      const allocatedHours = ((entry.duration || 0) * alloc.percentage) / 100 / 3600;
+                      rows.push(
+                        <TableRow
+                          key={`${entry.id}-alloc-${alloc.id}`}
+                          className="bg-muted/20"
+                        >
+                          <TableCell className="text-left pl-12">
+                            <span className="text-muted-foreground text-sm">↳</span>
+                          </TableCell>
+                          <TableCell className="text-left text-sm">
+                            {alloc.percentage.toFixed(1)}% {alloc.project?.abbreviation || alloc.project?.code}
+                            {alloc.wbs && `■${alloc.wbs.name}`}
+                          </TableCell>
+                          <TableCell className="text-left text-sm text-muted-foreground">
+                            -
+                          </TableCell>
+                          <TableCell className="text-left font-mono text-sm">
+                            {allocatedHours.toFixed(2)}h
+                          </TableCell>
+                          <TableCell className="text-left">
+                            {/* 子行にはボタンなし */}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    });
+                  }
+
+                  return rows;
+                })
               )}
             </TableBody>
           </Table>
@@ -688,11 +897,40 @@ export default function DailyTimeEntryTable({
           <DialogHeader>
             <DialogTitle>稼働実績を編集</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2">
-            <div className="min-w-[220px] flex-1">
-              <Label htmlFor="dailyTask" className="sr-only">
-                タスク <span className="text-destructive">*</span>
-              </Label>
+
+          {/* 按分モードトグル */}
+          <div className="flex items-center gap-2 mb-4">
+            <Switch
+              id="allocation-mode"
+              checked={isAllocationMode}
+              onCheckedChange={(checked) => {
+                setIsAllocationMode(checked);
+                if (checked && allocations.length === 0) {
+                  // 按分モードON時、按分がなければ1件追加
+                  addAllocation();
+                }
+              }}
+            />
+            <Label htmlFor="allocation-mode" className="cursor-pointer">
+              按分モード {isAllocationMode && `(合計: ${getTotalPercentage().toFixed(1)}%)`}
+            </Label>
+            {isAllocationMode && (
+              <span
+                className={
+                  Math.abs(getTotalPercentage() - 100) < 0.01
+                    ? "text-green-600 text-sm"
+                    : "text-destructive text-sm"
+                }
+              >
+                {Math.abs(getTotalPercentage() - 100) < 0.01 ? "✓" : "⚠ 100%にしてください"}
+              </span>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* タスク選択 */}
+            <div>
+              <Label htmlFor="dailyTask">タスク <span className="text-destructive">*</span></Label>
               <Select
                 value={formData.taskId || "none"}
                 onValueChange={(value) =>
@@ -731,76 +969,165 @@ export default function DailyTimeEntryTable({
               </Select>
             </div>
 
-            <div className="min-w-[220px] flex-1">
-              <Label htmlFor="project" className="sr-only">
-                プロジェクト
-              </Label>
-              <Select
-                value={getProjectSelectValue(formData.projectId, formData.wbsId)}
-                onValueChange={(value) => {
-                  if (value === "none") {
-                    setFormData({
-                      ...formData,
-                      projectId: "",
-                      wbsId: "",
-                    });
-                  } else {
-                    const [projectId, wbsId = ""] = value.split("|||");
-                    setFormData({
-                      ...formData,
-                      projectId,
-                      wbsId,
-                    });
-                  }
-                }}
-              >
-                <SelectTrigger id="project" className="h-9">
-                  <SelectValue placeholder="プロジェクトを選択" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">集計なし</SelectItem>
-                  {breakProjectOption && (
-                    <SelectItem value={breakProjectOption.value}>
-                      {breakProjectOption.label}
-                    </SelectItem>
-                  )}
-                  {editProjectWbsOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* 按分モード: 按分エントリリスト */}
+            {isAllocationMode ? (
+              <div className="space-y-2">
+                <Label>按分設定</Label>
+                {allocations.map((alloc, index) => (
+                  <div key={alloc.id} className="flex gap-2 items-end border p-2 rounded">
+                    <div className="flex-1">
+                      <Label className="text-xs">プロジェクト■WBS</Label>
+                      <Select
+                        value={getProjectSelectValue(alloc.projectId, alloc.wbsId)}
+                        onValueChange={(value) => {
+                          if (value === "none") {
+                            updateAllocationMultiple(alloc.id, {
+                              projectId: "",
+                              wbsId: "",
+                            });
+                          } else {
+                            const [projectId, wbsId = ""] = value.split("|||");
+                            updateAllocationMultiple(alloc.id, {
+                              projectId,
+                              wbsId,
+                            });
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="プロジェクトを選択" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">選択してください</SelectItem>
+                          {breakProjectOption && (
+                            <SelectItem value={breakProjectOption.value}>
+                              {breakProjectOption.label}
+                            </SelectItem>
+                          )}
+                          {editProjectWbsOptions.length > 0 ? (
+                            editProjectWbsOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-options" disabled>
+                              プロジェクト/WBSがありません
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="w-24">
+                      <Label className="text-xs">割合(%)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={alloc.percentage || ""}
+                        onChange={(e) =>
+                          updateAllocation(
+                            alloc.id,
+                            "percentage",
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
+                        className="h-9"
+                        placeholder="%"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9"
+                      onClick={() => removeAllocation(alloc.id)}
+                      disabled={allocations.length === 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addAllocation}
+                >
+                  + 按分を追加
+                </Button>
+              </div>
+            ) : (
+              /* シンプルモード: 通常のプロジェクト選択 */
+              <div>
+                <Label htmlFor="project">プロジェクト</Label>
+                <Select
+                  value={getProjectSelectValue(formData.projectId, formData.wbsId)}
+                  onValueChange={(value) => {
+                    if (value === "none") {
+                      setFormData({
+                        ...formData,
+                        projectId: "",
+                        wbsId: "",
+                      });
+                    } else {
+                      const [projectId, wbsId = ""] = value.split("|||");
+                      setFormData({
+                        ...formData,
+                        projectId,
+                        wbsId,
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger id="project" className="h-9">
+                    <SelectValue placeholder="プロジェクトを選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">集計なし</SelectItem>
+                    {breakProjectOption && (
+                      <SelectItem value={breakProjectOption.value}>
+                        {breakProjectOption.label}
+                      </SelectItem>
+                    )}
+                    {editProjectWbsOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-            <div className="w-32">
-              <Label htmlFor="startTime" className="sr-only">
-                開始時間
-              </Label>
-              <Input
-                id="startTime"
-                type="time"
-                value={formData.startTime}
-                onChange={(e) =>
-                  setFormData({ ...formData, startTime: e.target.value })
-                }
-                required
-                className="h-9 text-left tabular-nums"
-              />
-            </div>
-            <div className="w-32">
-              <Label htmlFor="endTime" className="sr-only">
-                終了時間
-              </Label>
-              <Input
-                id="endTime"
-                type="time"
-                value={formData.endTime}
-                onChange={(e) =>
-                  setFormData({ ...formData, endTime: e.target.value })
-                }
-                className="h-9 text-left tabular-nums"
-              />
+            {/* 時間入力 */}
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <Label htmlFor="startTime">開始時間</Label>
+                <Input
+                  id="startTime"
+                  type="time"
+                  value={formData.startTime}
+                  onChange={(e) =>
+                    setFormData({ ...formData, startTime: e.target.value })
+                  }
+                  required
+                  className="h-9 text-left tabular-nums"
+                />
+              </div>
+              <div className="flex-1">
+                <Label htmlFor="endTime">終了時間</Label>
+                <Input
+                  id="endTime"
+                  type="time"
+                  value={formData.endTime}
+                  onChange={(e) =>
+                    setFormData({ ...formData, endTime: e.target.value })
+                  }
+                  className="h-9 text-left tabular-nums"
+                />
+              </div>
             </div>
 
             <div className="flex gap-2">

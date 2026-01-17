@@ -23,6 +23,15 @@ export async function GET(request: NextRequest) {
       routineTask: true,
       project: true,
       wbs: true,
+      allocations: {
+        include: {
+          project: true,
+          wbs: true,
+        },
+        orderBy: {
+          percentage: "desc",
+        },
+      },
     },
     orderBy: {
       startTime: "desc",
@@ -44,6 +53,7 @@ export async function POST(request: NextRequest) {
     endTime,
     newTaskTitle, // 新規タスク作成用
     date, // 新規タスク作成時の日付
+    allocations, // 按分データ (optional)
   } = body;
 
   // 新規タスク作成の場合
@@ -102,6 +112,28 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // 按分バリデーション
+  let finalProjectId = projectId || null;
+  let finalWbsId = wbsId || null;
+
+  if (allocations && Array.isArray(allocations) && allocations.length > 0) {
+    // 按分率の合計が100%であることを確認
+    const totalPercentage = allocations.reduce(
+      (sum: number, alloc: { percentage: number }) => sum + alloc.percentage,
+      0
+    );
+    if (Math.abs(totalPercentage - 100) > 0.01) {
+      return NextResponse.json(
+        { error: "Allocation percentages must sum to 100%" },
+        { status: 400 }
+      );
+    }
+
+    // 按分がある場合はprojectId/wbsIdをnullに設定
+    finalProjectId = null;
+    finalWbsId = null;
+  }
+
   // startTime/endTime指定時はアクティブエントリチェックをスキップ
   const isManualEntry = startTime !== undefined;
 
@@ -126,23 +158,47 @@ export async function POST(request: NextRequest) {
     duration = Math.floor((end.getTime() - start.getTime()) / 1000);
   }
 
-  const timeEntry = await prisma.timeEntry.create({
-    data: {
-      dailyTaskId: normalizedDailyTaskId,
-      routineTaskId: normalizedRoutineTaskId,
-      projectId: projectId || null,
-      wbsId: wbsId || null,
-      startTime: startTime ? new Date(startTime) : new Date(),
-      endTime: endTime ? new Date(endTime) : null,
-      duration,
-      note,
-    },
-    include: {
-      dailyTask: true,
-      routineTask: true,
-      project: true,
-      wbs: true,
-    },
+  // TimeEntryとAllocationEntriesをトランザクションで作成
+  const timeEntry = await prisma.$transaction(async (tx) => {
+    const entry = await tx.timeEntry.create({
+      data: {
+        dailyTaskId: normalizedDailyTaskId,
+        routineTaskId: normalizedRoutineTaskId,
+        projectId: finalProjectId,
+        wbsId: finalWbsId,
+        startTime: startTime ? new Date(startTime) : new Date(),
+        endTime: endTime ? new Date(endTime) : null,
+        duration,
+        note,
+        allocations:
+          allocations && Array.isArray(allocations) && allocations.length > 0
+            ? {
+                create: allocations.map((alloc: {
+                  projectId: string;
+                  wbsId: string | null;
+                  percentage: number;
+                }) => ({
+                  projectId: alloc.projectId,
+                  wbsId: alloc.wbsId || null,
+                  percentage: alloc.percentage,
+                })),
+              }
+            : undefined,
+      },
+      include: {
+        dailyTask: true,
+        routineTask: true,
+        project: true,
+        wbs: true,
+        allocations: {
+          include: {
+            project: true,
+            wbs: true,
+          },
+        },
+      },
+    });
+    return entry;
   });
 
   return NextResponse.json(timeEntry, { status: 201 });

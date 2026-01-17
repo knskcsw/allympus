@@ -52,6 +52,12 @@ export async function GET(request: NextRequest) {
       dailyTask: true,
       project: true,
       wbs: true,
+      allocations: {
+        include: {
+          project: true,
+          wbs: true,
+        },
+      },
     },
     orderBy: {
       startTime: "asc",
@@ -131,16 +137,29 @@ export async function GET(request: NextRequest) {
 
   const wbsSummary = timeEntries.reduce(
     (acc, entry) => {
-      if (!entry.projectId) {
-        return acc;
+      // 按分エントリの場合
+      if (entry.allocations && entry.allocations.length > 0) {
+        entry.allocations.forEach((alloc: { project?: { name?: string }; wbs?: { name?: string }; percentage: number }) => {
+          const projectName = alloc.project?.name || "No Project";
+          const wbsName = alloc.wbs?.name || "No WBS";
+          const key = `${projectName} - ${wbsName}`;
+          if (!acc[key]) {
+            acc[key] = 0;
+          }
+          const allocatedSeconds = ((entry.duration || 0) * alloc.percentage) / 100;
+          acc[key] += allocatedSeconds;
+        });
       }
-      const projectName = entry.project?.name || "No Project";
-      const wbsName = entry.wbs?.name || "No WBS";
-      const key = `${projectName} - ${wbsName}`;
-      if (!acc[key]) {
-        acc[key] = 0;
+      // シンプルエントリの場合（後方互換性）
+      else if (entry.projectId) {
+        const projectName = entry.project?.name || "No Project";
+        const wbsName = entry.wbs?.name || "No WBS";
+        const key = `${projectName} - ${wbsName}`;
+        if (!acc[key]) {
+          acc[key] = 0;
+        }
+        acc[key] += entry.duration || 0;
       }
-      acc[key] += entry.duration || 0;
       return acc;
     },
     {} as Record<string, number>
