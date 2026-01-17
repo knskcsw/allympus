@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import WorkScheduleTemplates from "@/components/routine/WorkScheduleTemplates";
+import { Pencil, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type TemplateItem = {
   id: string;
@@ -15,7 +16,6 @@ type TemplateItem = {
 type RoutineTask = {
   id: string;
   title: string;
-  description: string | null;
 };
 
 async function parseJsonResponse(response: Response) {
@@ -37,6 +37,11 @@ export default function RoutinePage() {
   const [routineTasks, setRoutineTasks] = useState<RoutineTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<
+    | { kind: "template"; id: string }
+    | { kind: "task"; id: string }
+    | null
+  >(null);
 
   const [templateTitleDraft, setTemplateTitleDraft] = useState("");
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
@@ -44,10 +49,8 @@ export default function RoutinePage() {
   const [isTemplateSubmitting, setIsTemplateSubmitting] = useState(false);
 
   const [taskTitleDraft, setTaskTitleDraft] = useState("");
-  const [taskDescriptionDraft, setTaskDescriptionDraft] = useState("");
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState("");
-  const [editingTaskDescription, setEditingTaskDescription] = useState("");
   const [isTaskSubmitting, setIsTaskSubmitting] = useState(false);
 
   const fetchRoutineData = useCallback(async () => {
@@ -55,8 +58,8 @@ export default function RoutinePage() {
     setErrorMessage(null);
     try {
       const [templateResponse, tasksResponse] = await Promise.all([
-        fetch("/api/morning-routine-template"),
-        fetch("/api/routine-tasks"),
+        fetch("/api/morning-routine-template", { cache: "no-store" }),
+        fetch("/api/routine-tasks", { cache: "no-store" }),
       ]);
       const [templates, tasks] = await Promise.all([
         parseJsonResponse(templateResponse),
@@ -135,7 +138,6 @@ export default function RoutinePage() {
   };
 
   const handleTemplateDelete = async (id: string) => {
-    if (!confirm("このテンプレートを削除してもよろしいですか？")) return;
     setIsTemplateSubmitting(true);
     try {
       const response = await fetch(`/api/morning-routine-template/${id}`, {
@@ -162,14 +164,10 @@ export default function RoutinePage() {
       const response = await fetch("/api/routine-tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description: taskDescriptionDraft.trim(),
-        }),
+        body: JSON.stringify({ title }),
       });
       await parseJsonResponse(response);
       setTaskTitleDraft("");
-      setTaskDescriptionDraft("");
       fetchRoutineData();
     } catch (error) {
       console.error("Failed to create routine task:", error);
@@ -182,13 +180,11 @@ export default function RoutinePage() {
   const handleTaskEditStart = (task: RoutineTask) => {
     setEditingTaskId(task.id);
     setEditingTaskTitle(task.title);
-    setEditingTaskDescription(task.description || "");
   };
 
   const handleTaskEditCancel = () => {
     setEditingTaskId(null);
     setEditingTaskTitle("");
-    setEditingTaskDescription("");
   };
 
   const handleTaskEditSave = async () => {
@@ -200,10 +196,7 @@ export default function RoutinePage() {
       const response = await fetch(`/api/routine-tasks/${editingTaskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description: editingTaskDescription.trim(),
-        }),
+        body: JSON.stringify({ title }),
       });
       await parseJsonResponse(response);
       handleTaskEditCancel();
@@ -217,7 +210,6 @@ export default function RoutinePage() {
   };
 
   const handleTaskDelete = async (id: string) => {
-    if (!confirm("このタスクを削除してもよろしいですか？")) return;
     setIsTaskSubmitting(true);
     try {
       const response = await fetch(`/api/routine-tasks/${id}`, {
@@ -262,6 +254,32 @@ export default function RoutinePage() {
 
   return (
     <div className="space-y-4 p-6 min-h-screen">
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        title={
+          pendingDelete?.kind === "template"
+            ? "このテンプレートを削除してもよろしいですか？"
+            : "このタスクを削除してもよろしいですか？"
+        }
+        description="この操作は取り消しできません。"
+        confirmText="削除"
+        cancelText="キャンセル"
+        confirmVariant="destructive"
+        confirmDisabled={isTemplateSubmitting || isTaskSubmitting}
+        onConfirm={() => {
+          const current = pendingDelete;
+          if (!current) return;
+          setPendingDelete(null);
+          if (current.kind === "template") {
+            void handleTemplateDelete(current.id);
+          } else {
+            void handleTaskDelete(current.id);
+          }
+        }}
+      />
       <h1 className="text-3xl font-bold">Routine Settings</h1>
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
@@ -324,20 +342,30 @@ export default function RoutinePage() {
                         ) : (
                           <>
                             <Button
-                              size="sm"
+                              type="button"
                               variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
                               onClick={() => handleTemplateEditStart(item)}
                               disabled={isTemplateSubmitting}
+                              aria-label="編集"
                             >
-                              編集
+                              <Pencil className="h-3.5 w-3.5" />
                             </Button>
                             <Button
-                              size="sm"
+                              type="button"
                               variant="ghost"
-                              onClick={() => handleTemplateDelete(item.id)}
+                              size="icon"
+                              className="h-7 w-7 text-destructive"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setPendingDelete({ kind: "template", id: item.id });
+                              }}
                               disabled={isTemplateSubmitting}
+                              aria-label="削除"
                             >
-                              削除
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </>
                         )}
@@ -394,13 +422,6 @@ export default function RoutinePage() {
                             value={editingTaskTitle}
                             onChange={(e) => setEditingTaskTitle(e.target.value)}
                           />
-                          <Textarea
-                            value={editingTaskDescription}
-                            onChange={(e) =>
-                              setEditingTaskDescription(e.target.value)
-                            }
-                            rows={2}
-                          />
                           <div className="flex gap-2">
                             <Button
                               size="sm"
@@ -423,28 +444,33 @@ export default function RoutinePage() {
                         <div className="flex items-start gap-3">
                           <div className="flex-1">
                             <div className="font-medium">{task.title}</div>
-                            {task.description && (
-                              <p className="text-muted-foreground">
-                                {task.description}
-                              </p>
-                            )}
                           </div>
                           <div className="flex gap-2">
                             <Button
-                              size="sm"
+                              type="button"
                               variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
                               onClick={() => handleTaskEditStart(task)}
                               disabled={isTaskSubmitting}
+                              aria-label="編集"
                             >
-                              編集
+                              <Pencil className="h-3.5 w-3.5" />
                             </Button>
                             <Button
-                              size="sm"
+                              type="button"
                               variant="ghost"
-                              onClick={() => handleTaskDelete(task.id)}
+                              size="icon"
+                              className="h-7 w-7 text-destructive"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setPendingDelete({ kind: "task", id: task.id });
+                              }}
                               disabled={isTaskSubmitting}
+                              aria-label="削除"
                             >
-                              削除
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         </div>
@@ -467,12 +493,6 @@ export default function RoutinePage() {
                     handleTaskCreate();
                   }
                 }}
-              />
-              <Textarea
-                value={taskDescriptionDraft}
-                onChange={(e) => setTaskDescriptionDraft(e.target.value)}
-                placeholder="説明（任意）"
-                rows={2}
               />
               <Button
                 onClick={handleTaskCreate}
