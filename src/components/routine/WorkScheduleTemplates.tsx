@@ -17,6 +17,7 @@ type Project = {
   id: string;
   code: string;
   name: string;
+  sortOrder?: number | null;
   wbsList: { id: string; name: string }[];
 };
 
@@ -213,10 +214,13 @@ export default function WorkScheduleTemplates() {
   }
 
   const selectedProject = projects.find((p) => p.id === newItemProjectId);
+  const orderedProjects = [...projects].sort(
+    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+  );
 
   // Create project/WBS options like in DailyTimeEntryTable
   const projectWbsOptions: Array<{ value: string; label: string }> = [];
-  for (const project of projects) {
+  for (const project of orderedProjects) {
     if (project.wbsList && project.wbsList.length > 0) {
       for (const wbs of project.wbsList) {
         projectWbsOptions.push({
