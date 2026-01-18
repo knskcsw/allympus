@@ -1,0 +1,202 @@
+---
+name: worktree-finish
+description: Safely merge work to main, clean up worktree, delete branch, and stop dev server after user confirms the work is complete. Use this when the user confirms their feature/issue work is done and ready to merge.
+---
+
+# worktree-finish
+
+Safely merge work to main and clean up after user confirms the work is complete.
+
+## Instructions
+
+You are a worktree cleanup assistant. Your job is to safely merge work to main and clean up.
+
+### Step 1: Safety Checks and Confirmation
+
+IMMEDIATELY run these commands:
+
+```bash
+pwd
+git branch --show-current
+git status
+ps aux | grep "next dev" | grep -v grep
+```
+
+Analyze the output:
+
+1. **Location check:**
+   - ✅ If in worktree (`~/.claude-worktrees/manage-task-app/*`) → Good, can proceed
+   - ⚠️ If in main repo → Ask user which worktree they want to finish
+   - ❌ If on main branch in main repo → Error: no worktree to finish
+
+2. **Git status check:**
+   - ✅ If clean (no uncommitted changes) → Good, can merge
+   - ⚠️ If uncommitted changes exist → WARN user and ask:
+     - "You have uncommitted changes. Do you want to:"
+     - "1. Commit them first"
+     - "2. Stash them"
+     - "3. Cancel cleanup"
+
+3. **Running server check:**
+   - Identify if a dev server is running for this worktree (check port)
+   - Extract PID for later cleanup
+
+### Step 2: Confirm with User
+
+**CRITICAL:** Before doing ANYTHING destructive, show user what will happen:
+
+```
+📋 Ready to finish work on: <branch-name>
+
+This will:
+1. Stop dev server on port <port> (PID: <pid>)
+2. Switch to main repo and main branch
+3. Merge <branch-name> into main
+4. Remove worktree at: <worktree-path>
+5. Delete branch: <branch-name>
+
+⚠️ Are you sure you want to proceed?
+```
+
+**DO NOT PROCEED** without explicit user confirmation ("yes", "OK", "proceed", etc.)
+
+### Step 3: Execute Cleanup (Only After Confirmation)
+
+Run these commands **in order**:
+
+```bash
+# 1. Stop dev server (if running)
+kill <PID>
+
+# 2. Navigate to main repo
+cd /Users/kansukechisuwa/project/manage-task-app
+
+# 3. Switch to main branch
+git checkout main
+
+# 4. Merge the branch
+git merge <branch-name> --no-edit
+
+# 5. Remove worktree
+git worktree remove <worktree-path>
+
+# 6. Delete branch
+git branch -d <branch-name>
+
+# 7. Verify cleanup
+git worktree list
+git branch | grep <branch-name>
+```
+
+### Step 4: Report Results
+
+Provide a clear summary:
+
+```
+✅ Cleanup complete!
+
+✓ Dev server stopped (port <port>)
+✓ Merged <branch-name> → main
+✓ Worktree removed: <worktree-path>
+✓ Branch deleted: <branch-name>
+
+📁 Current location: /Users/kansukechisuwa/project/manage-task-app (main)
+🌿 Active worktrees remaining: <count>
+```
+
+If there are still other worktrees, list them.
+
+## Examples
+
+**Example 1: Happy Path**
+```
+User: /worktree-finish
+Assistant:
+[Runs checks]
+Current: ~/.claude-worktrees/manage-task-app/issue-3 (issue-3-fix-overflow)
+Status: Clean, no uncommitted changes
+Server: Running on port 3003 (PID: 12345)
+
+📋 Ready to finish work on: issue-3-fix-overflow
+
+This will:
+1. Stop dev server on port 3003 (PID: 12345)
+2. Switch to main repo and main branch
+3. Merge issue-3-fix-overflow into main
+4. Remove worktree at: ~/.claude-worktrees/manage-task-app/issue-3
+5. Delete branch: issue-3-fix-overflow
+
+Proceed? (yes/no)
+
+User: yes
+
+[Executes cleanup]
+
+✅ Cleanup complete!
+✓ Dev server stopped (port 3003)
+✓ Merged issue-3-fix-overflow → main
+✓ Worktree removed
+✓ Branch deleted
+
+📁 Current location: /Users/kansukechisuwa/project/manage-task-app (main)
+```
+
+**Example 2: Uncommitted Changes**
+```
+User: /worktree-finish
+Assistant:
+⚠️ Warning: You have uncommitted changes!
+
+Modified files:
+  - src/components/MyComponent.tsx
+  - README.md
+
+Do you want to:
+1. Commit them first
+2. Stash them
+3. Cancel cleanup
+
+User: 1
+
+[Creates commit, then proceeds with cleanup after confirmation]
+```
+
+**Example 3: Called from Main Repo**
+```
+User: /worktree-finish
+Assistant:
+Current location: /Users/kansukechisuwa/project/manage-task-app (main)
+
+You're in the main repo. Which worktree do you want to finish?
+
+Active worktrees:
+1. issue-3 (issue-3-fix-overflow) - Port 3003
+2. issue-5 (feature/issue-5) - Port 3004
+
+User: 1
+
+[Proceeds with cleanup for issue-3]
+```
+
+## Error Handling
+
+- **Merge conflicts:** If merge fails, STOP immediately and inform user
+- **Worktree has uncommitted changes:** Require user decision before proceeding
+- **Branch not fully merged:** Git will prevent deletion, inform user
+- **Can't find dev server PID:** Continue cleanup, just note server might still be running
+- **Permission errors:** Report to user and suggest manual cleanup
+
+## Safety Features
+
+1. **Always confirm before destructive actions**
+2. **Never force-delete branches** (use `-d` not `-D`)
+3. **Check git status** before merging
+4. **Verify worktree removal succeeded** before deleting branch
+5. **Report any errors clearly** with suggested fixes
+
+## Notes
+
+- This skill pairs with `/worktree-start`
+- Can be called from anywhere (worktree or main repo)
+- Always errs on the side of caution
+- User confirmation is REQUIRED before any destructive action
