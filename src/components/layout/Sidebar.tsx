@@ -25,7 +25,6 @@ import {
 import {
   Home,
   Calendar,
-  BarChart3,
   FolderKanban,
   CalendarDays,
   ChevronLeft,
@@ -58,7 +57,6 @@ const DEFAULT_NAVIGATION: NavigationItem[] = [
   { name: "Kadmin", href: "/kadmin", icon: Briefcase },
   { name: "Holidays", href: "/holidays", icon: CalendarRange },
   { name: "Monthly", href: "/monthly", icon: Calendar },
-  { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "EVM", href: "/evm", icon: LineChart },
   { name: "Salary", href: "/salary", icon: Wallet },
 ];
