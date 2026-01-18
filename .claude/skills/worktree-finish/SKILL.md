@@ -52,11 +52,14 @@ This will:
 1. Stop dev server on port <port> (PID: <pid>)
 2. Switch to main repo and main branch
 3. Merge <branch-name> into main
-4. Remove worktree at: <worktree-path>
-5. Delete branch: <branch-name>
+4. Close GitHub issue #<number> (if branch name contains issue number)
+5. Remove worktree at: <worktree-path>
+6. Delete branch: <branch-name>
 
 ⚠️ Are you sure you want to proceed?
 ```
+
+**Note:** Only include step 4 (Close GitHub issue) if the branch name contains an issue number (e.g., `issue-3-fix-overflow`).
 
 **DO NOT PROCEED** without explicit user confirmation ("yes", "OK", "proceed", etc.)
 
@@ -77,16 +80,28 @@ git checkout main
 # 4. Merge the branch
 git merge <branch-name> --no-edit
 
-# 5. Remove worktree
+# 5. Close GitHub issue (if branch name contains issue number)
+# Extract issue number from branch name (e.g., issue-3-fix-overflow → 3)
+# Use gh CLI to close the issue
+gh issue close <issue-number> -c "Closed via /worktree-finish after merging <branch-name>"
+
+# 6. Remove worktree
 git worktree remove <worktree-path>
 
-# 6. Delete branch
+# 7. Delete branch
 git branch -d <branch-name>
 
-# 7. Verify cleanup
+# 8. Verify cleanup
 git worktree list
 git branch | grep <branch-name>
 ```
+
+**Important for Step 5 (Close GitHub issue):**
+- Only run if branch name matches pattern `issue-<number>-*` or `fix/issue-<number>-*` or `feature/issue-<number>-*`
+- Extract the issue number using pattern matching
+- If issue number is found, close it with `gh issue close <number>`
+- If `gh` command fails (not installed, no auth, issue already closed), just note it and continue
+- DO NOT fail the entire cleanup if issue close fails
 
 ### Step 4: Report Results
 
@@ -97,12 +112,18 @@ Provide a clear summary:
 
 ✓ Dev server stopped (port <port>)
 ✓ Merged <branch-name> → main
+✓ Issue #<number> closed (if applicable)
 ✓ Worktree removed: <worktree-path>
 ✓ Branch deleted: <branch-name>
 
 📁 Current location: /Users/kansukechisuwa/project/manage-task-app (main)
 🌿 Active worktrees remaining: <count>
 ```
+
+**Include in the report:**
+- If issue was closed: "✓ Issue #X closed"
+- If no issue found in branch name: Omit this line
+- If issue close failed: "⚠️ Could not close issue #X (may already be closed or gh not configured)"
 
 If there are still other worktrees, list them.
 
@@ -123,8 +144,9 @@ This will:
 1. Stop dev server on port 3003 (PID: 12345)
 2. Switch to main repo and main branch
 3. Merge issue-3-fix-overflow into main
-4. Remove worktree at: ~/.claude-worktrees/manage-task-app/issue-3
-5. Delete branch: issue-3-fix-overflow
+4. Close GitHub issue #3
+5. Remove worktree at: ~/.claude-worktrees/manage-task-app/issue-3
+6. Delete branch: issue-3-fix-overflow
 
 Proceed? (yes/no)
 
@@ -135,6 +157,7 @@ User: yes
 ✅ Cleanup complete!
 ✓ Dev server stopped (port 3003)
 ✓ Merged issue-3-fix-overflow → main
+✓ Issue #3 closed
 ✓ Worktree removed
 ✓ Branch deleted
 
