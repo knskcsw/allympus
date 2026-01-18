@@ -36,7 +36,7 @@ interface AllocationEntry {
   projectId: string;
   project?: { id: string; code: string; name: string; abbreviation: string | null };
   wbsId: string | null;
-  wbs?: { id: string; name: string } | null;
+  wbs?: { id: string; name: string; abbreviation: string | null } | null;
   percentage: number;
 }
 
@@ -49,7 +49,7 @@ interface TimeEntry {
   projectId: string | null;
   project?: { id: string; code: string; name: string; abbreviation: string | null } | null;
   wbsId: string | null;
-  wbs?: { id: string; name: string } | null;
+  wbs?: { id: string; name: string; abbreviation: string | null } | null;
   startTime: Date;
   endTime: Date | null;
   duration: number | null;
@@ -67,7 +67,7 @@ interface DailyTimeEntryTableProps {
     name: string;
     abbreviation?: string | null;
     sortOrder?: number | null;
-    wbsList: Array<{ id: string; name: string }>;
+    wbsList: Array<{ id: string; name: string; abbreviation: string | null }>;
   }>;
   onUpdate: (id: string, data: any) => void;
   onDelete: (id: string) => void;
@@ -481,7 +481,7 @@ export default function DailyTimeEntryTable({
       projectId: project.id,
       wbsId: wbs.id,
       value: `${project.id}|||${wbs.id}`,
-      label: `${project.abbreviation || project.code}■${wbs.name}`,
+      label: `${project.abbreviation || project.code}■${wbs.abbreviation || wbs.name}`,
     }))
   );
 
@@ -491,7 +491,7 @@ export default function DailyTimeEntryTable({
       projectId: project.id,
       wbsId: wbs.id,
       value: `${project.id}|||${wbs.id}`,
-      label: `${project.abbreviation || project.code}■${wbs.name}`,
+      label: `${project.abbreviation || project.code}■${wbs.abbreviation || wbs.name}`,
     }))
   );
 
@@ -638,7 +638,7 @@ export default function DailyTimeEntryTable({
                             按分: {entry.allocations!.length}件
                           </span>
                         ) : entry.project && entry.wbs ? (
-                          `${entry.project.abbreviation || entry.project.code}■${entry.wbs.name}`
+                          `${entry.project.abbreviation || entry.project.code}■${entry.wbs.abbreviation || entry.wbs.name}`
                         ) : entry.project ? (
                           `${entry.project.code} - ${entry.project.name}`
                         ) : (
@@ -710,7 +710,7 @@ export default function DailyTimeEntryTable({
                           </TableCell>
                           <TableCell className="text-left text-sm">
                             {alloc.percentage.toFixed(1)}% {alloc.project?.abbreviation || alloc.project?.code}
-                            {alloc.wbs && `■${alloc.wbs.name}`}
+                            {alloc.wbs && `■${alloc.wbs.abbreviation || alloc.wbs.name}`}
                           </TableCell>
                           <TableCell className="text-left text-sm text-muted-foreground">
                             -

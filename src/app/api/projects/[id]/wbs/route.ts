@@ -7,12 +7,13 @@ export async function POST(
 ) {
   const { id: projectId } = await params;
   const body = await request.json();
-  const { name } = body;
+  const { name, abbreviation } = body;
 
   const wbs = await prisma.wbs.create({
     data: {
       projectId,
       name,
+      ...(abbreviation !== undefined && { abbreviation }),
     },
   });
 

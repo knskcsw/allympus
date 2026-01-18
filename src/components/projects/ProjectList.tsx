@@ -34,9 +34,9 @@ type ProjectWithWbs = Project & { wbsList: Wbs[] };
 
 interface ProjectListProps {
   projects: ProjectWithWbs[];
-  onAddWbs: (projectId: string, name: string) => void;
+  onAddWbs: (projectId: string, name: string, abbreviation?: string) => void;
   onDeleteWbs: (wbsId: string) => void;
-  onUpdateWbs: (wbsId: string, name: string) => void;
+  onUpdateWbs: (wbsId: string, name: string, abbreviation?: string) => void;
   onDeleteProject: (projectId: string) => void;
   onUpdateProject: (
     projectId: string,
@@ -64,10 +64,12 @@ type SortableProjectItemProps = {
   };
   editingWbs: string | null;
   editingWbsName: string;
+  editingWbsAbbreviation: string;
   newWbsName: Record<string, string>;
-  onAddWbs: (projectId: string, name: string) => void;
+  newWbsAbbreviation: Record<string, string>;
+  onAddWbs: (projectId: string, name: string, abbreviation?: string) => void;
   onDeleteWbs: (wbsId: string) => void;
-  onUpdateWbs: (wbsId: string, name: string) => void;
+  onUpdateWbs: (wbsId: string, name: string, abbreviation?: string) => void;
   onDeleteProject: (projectId: string) => void;
   onUpdateProject: (
     projectId: string,
@@ -81,8 +83,10 @@ type SortableProjectItemProps = {
   onMoveProject: (projectId: string, direction: "up" | "down") => void;
   setExpandedProjects: Dispatch<SetStateAction<Set<string>>>;
   setNewWbsName: Dispatch<SetStateAction<Record<string, string>>>;
+  setNewWbsAbbreviation: Dispatch<SetStateAction<Record<string, string>>>;
   setEditingWbs: Dispatch<SetStateAction<string | null>>;
   setEditingWbsName: Dispatch<SetStateAction<string>>;
+  setEditingWbsAbbreviation: Dispatch<SetStateAction<string>>;
   setEditingProject: Dispatch<SetStateAction<string | null>>;
   setEditingProjectData: Dispatch<
     SetStateAction<{
@@ -107,7 +111,9 @@ function SortableProjectItem({
   editingProjectData,
   editingWbs,
   editingWbsName,
+  editingWbsAbbreviation,
   newWbsName,
+  newWbsAbbreviation,
   onAddWbs,
   onDeleteWbs,
   onUpdateWbs,
@@ -118,8 +124,10 @@ function SortableProjectItem({
   onMoveProject,
   setExpandedProjects,
   setNewWbsName,
+  setNewWbsAbbreviation,
   setEditingWbs,
   setEditingWbsName,
+  setEditingWbsAbbreviation,
   setEditingProject,
   setEditingProjectData,
 }: SortableProjectItemProps) {
@@ -158,21 +166,26 @@ function SortableProjectItem({
   const handleAddWbs = (projectId: string) => {
     const name = newWbsName[projectId]?.trim();
     if (name) {
-      onAddWbs(projectId, name);
+      const abbreviation = newWbsAbbreviation[projectId]?.trim();
+      onAddWbs(projectId, name, abbreviation || undefined);
       setNewWbsName((prev) => ({ ...prev, [projectId]: "" }));
+      setNewWbsAbbreviation((prev) => ({ ...prev, [projectId]: "" }));
     }
   };
 
   const startEditWbs = (wbs: Wbs) => {
     setEditingWbs(wbs.id);
     setEditingWbsName(wbs.name);
+    setEditingWbsAbbreviation(wbs.abbreviation || "");
   };
 
   const saveEditWbs = () => {
     if (editingWbs && editingWbsName.trim()) {
-      onUpdateWbs(editingWbs, editingWbsName.trim());
+      const abbreviation = editingWbsAbbreviation.trim();
+      onUpdateWbs(editingWbs, editingWbsName.trim(), abbreviation || undefined);
       setEditingWbs(null);
       setEditingWbsName("");
+      setEditingWbsAbbreviation("");
     }
   };
 
@@ -423,11 +436,22 @@ function SortableProjectItem({
                             value={editingWbsName}
                             onChange={(e) => setEditingWbsName(e.target.value)}
                             className="flex-1 h-8"
+                            placeholder="WBS Name"
                             onKeyDown={(e) => {
                               if (e.key === "Enter") saveEditWbs();
                               if (e.key === "Escape") setEditingWbs(null);
                             }}
                             autoFocus
+                          />
+                          <Input
+                            value={editingWbsAbbreviation}
+                            onChange={(e) => setEditingWbsAbbreviation(e.target.value)}
+                            className="w-24 h-8"
+                            placeholder="Abbr."
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") saveEditWbs();
+                              if (e.key === "Escape") setEditingWbs(null);
+                            }}
                           />
                           <Button
                             variant="ghost"
@@ -448,7 +472,14 @@ function SortableProjectItem({
                         </div>
                       ) : (
                         <>
-                          <span className="text-sm">{wbs.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">{wbs.name}</span>
+                            {wbs.abbreviation && (
+                              <Badge variant="secondary" className="text-xs">
+                                {wbs.abbreviation}
+                              </Badge>
+                            )}
+                          </div>
                           <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
@@ -495,6 +526,20 @@ function SortableProjectItem({
                     if (e.key === "Enter") handleAddWbs(project.id);
                   }}
                 />
+                <Input
+                  value={newWbsAbbreviation[project.id] || ""}
+                  onChange={(e) =>
+                    setNewWbsAbbreviation((prev) => ({
+                      ...prev,
+                      [project.id]: e.target.value,
+                    }))
+                  }
+                  placeholder="Abbreviation"
+                  className="w-32 h-8"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleAddWbs(project.id);
+                  }}
+                />
                 <Button
                   size="sm"
                   variant="outline"
@@ -527,8 +572,10 @@ export function ProjectList({
     new Set()
   );
   const [newWbsName, setNewWbsName] = useState<Record<string, string>>({});
+  const [newWbsAbbreviation, setNewWbsAbbreviation] = useState<Record<string, string>>({});
   const [editingWbs, setEditingWbs] = useState<string | null>(null);
   const [editingWbsName, setEditingWbsName] = useState("");
+  const [editingWbsAbbreviation, setEditingWbsAbbreviation] = useState("");
   const [editingProject, setEditingProject] = useState<string | null>(null);
   const [editingProjectData, setEditingProjectData] = useState({
     code: "",
@@ -554,7 +601,9 @@ export function ProjectList({
             editingProjectData={editingProjectData}
             editingWbs={editingWbs}
             editingWbsName={editingWbsName}
+            editingWbsAbbreviation={editingWbsAbbreviation}
             newWbsName={newWbsName}
+            newWbsAbbreviation={newWbsAbbreviation}
             onAddWbs={onAddWbs}
             onDeleteWbs={onDeleteWbs}
             onUpdateWbs={onUpdateWbs}
@@ -565,8 +614,10 @@ export function ProjectList({
             onMoveProject={onMoveProject}
             setExpandedProjects={setExpandedProjects}
             setNewWbsName={setNewWbsName}
+            setNewWbsAbbreviation={setNewWbsAbbreviation}
             setEditingWbs={setEditingWbs}
             setEditingWbsName={setEditingWbsName}
+            setEditingWbsAbbreviation={setEditingWbsAbbreviation}
             setEditingProject={setEditingProject}
             setEditingProjectData={setEditingProjectData}
           />

@@ -7,11 +7,14 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { name } = body;
+  const { name, abbreviation } = body;
 
   const wbs = await prisma.wbs.update({
     where: { id },
-    data: { name },
+    data: {
+      name,
+      ...(abbreviation !== undefined && { abbreviation }),
+    },
   });
 
   return NextResponse.json(wbs);

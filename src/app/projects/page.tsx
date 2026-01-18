@@ -46,11 +46,11 @@ export default function ProjectsPage() {
     fetchProjects();
   };
 
-  const handleAddWbs = async (projectId: string, name: string) => {
+  const handleAddWbs = async (projectId: string, name: string, abbreviation?: string) => {
     await fetch(`/api/projects/${projectId}/wbs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, abbreviation }),
     });
     fetchProjects();
   };
@@ -62,11 +62,11 @@ export default function ProjectsPage() {
     fetchProjects();
   };
 
-  const handleUpdateWbs = async (wbsId: string, name: string) => {
+  const handleUpdateWbs = async (wbsId: string, name: string, abbreviation?: string) => {
     await fetch(`/api/wbs/${wbsId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, abbreviation }),
     });
     fetchProjects();
   };
