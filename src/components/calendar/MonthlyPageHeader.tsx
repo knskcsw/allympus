@@ -21,7 +21,7 @@ export const MonthlyPageHeader = memo(function MonthlyPageHeader({
         <div className="rounded-full bg-primary/10 p-2 text-primary">
           <Calendar className="h-5 w-5" />
         </div>
-        <h1 className="text-3xl font-bold">Calendar</h1>
+        <h1 className="text-3xl font-bold">Monthly</h1>
       </div>
       <div className="flex items-center gap-2">
         <Button variant="outline" size="icon" onClick={onPrevMonth}>

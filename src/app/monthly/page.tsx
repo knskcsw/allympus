@@ -12,7 +12,7 @@ import { MonthlyWorkTypeRatioCard } from "@/components/calendar/MonthlyWorkTypeR
 import { useMonthlyData } from "@/hooks/useMonthlyData";
 import { useMonthNavigation } from "@/hooks/useMonthNavigation";
 
-export default function CalendarPage() {
+export default function MonthlyPage() {
   const {
     currentDate,
     selectedDate,

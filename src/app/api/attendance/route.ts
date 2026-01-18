@@ -6,10 +6,21 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const year = searchParams.get("year");
   const month = searchParams.get("month");
+  const startDate = searchParams.get("startDate");
+  const endDate = searchParams.get("endDate");
 
   let where = {};
 
-  if (year && month) {
+  // startDateとendDateが指定されている場合は日付範囲で検索
+  if (startDate && endDate) {
+    where = {
+      date: {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      },
+    };
+  } else if (year && month) {
+    // yearとmonthが指定されている場合は月単位で検索
     const date = new Date(parseInt(year), parseInt(month) - 1, 1);
     const monthStart = startOfMonth(date);
     const monthEnd = endOfMonth(date);

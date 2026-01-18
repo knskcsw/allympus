@@ -327,3 +327,15 @@ model SalaryRecord {
   @@unique([year, month])
   @@map("salary_records")
 }
+
+model WeeklyReport {
+  id        String   @id @default(cuid())
+  weekStart DateTime
+  weekEnd   DateTime
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([weekStart])
+  @@map("weekly_reports")
+}
