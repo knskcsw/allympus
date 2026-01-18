@@ -20,6 +20,7 @@ import {
   MoonStar,
   Wallet,
   Repeat,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const navigation = [
   { name: "Kadmin", href: "/kadmin", icon: Briefcase },
   { name: "Holidays", href: "/holidays", icon: CalendarRange },
   { name: "Monthly", href: "/monthly", icon: Calendar },
+  { name: "Weekly", href: "/weekly", icon: CalendarClock },
   { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "EVM", href: "/evm", icon: LineChart },
   { name: "Salary", href: "/salary", icon: Wallet },
