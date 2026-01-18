@@ -645,7 +645,7 @@ export default function DailyTimeEntryTable({
                           "集計なし"
                         )}
                       </TableCell>
-                      <TableCell className="text-left font-mono">
+                      <TableCell className="text-left tabular-nums">
                         <span
                           className={
                             timeWarnings[entry.id]?.start ? "text-destructive" : ""
@@ -664,7 +664,7 @@ export default function DailyTimeEntryTable({
                             : "進行中"}
                         </span>
                       </TableCell>
-                      <TableCell className="text-left font-mono font-semibold">
+                      <TableCell className="text-left tabular-nums">
                         {formatDurationHours(entry.duration)}h
                       </TableCell>
                       <TableCell className="text-left">
@@ -715,7 +715,7 @@ export default function DailyTimeEntryTable({
                           <TableCell className="text-left text-sm text-muted-foreground">
                             -
                           </TableCell>
-                          <TableCell className="text-left font-mono text-sm">
+                          <TableCell className="text-left tabular-nums text-sm">
                             {allocatedHours.toFixed(2)}h
                           </TableCell>
                           <TableCell className="text-left">

@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { WEEKDAYS, includesWeekday, toggleWeekdayMask } from "@/lib/weekdayMask";
 
 type Project = {
   id: string;
@@ -36,6 +37,7 @@ type WorkScheduleTemplateItem = {
 type WorkScheduleTemplate = {
   id: string;
   name: string;
+  weekdayMask: number;
   items: WorkScheduleTemplateItem[];
 };
 
@@ -141,6 +143,32 @@ export default function WorkScheduleTemplates() {
     }
   };
 
+  const handleWeekdayMaskUpdate = async (templateId: string, nextMask: number) => {
+    const prevTemplate = templates.find((t) => t.id === templateId);
+    if (!prevTemplate) return;
+
+    setTemplates((prev) =>
+      prev.map((t) => (t.id === templateId ? { ...t, weekdayMask: nextMask } : t))
+    );
+
+    try {
+      const response = await fetch(`/api/work-schedule-templates/${templateId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weekdayMask: nextMask }),
+      });
+      await parseJsonResponse(response);
+    } catch (error) {
+      console.error("Failed to update weekdayMask:", error);
+      setTemplates((prev) =>
+        prev.map((t) =>
+          t.id === templateId ? { ...t, weekdayMask: prevTemplate.weekdayMask } : t
+        )
+      );
+      alert("曜日設定の更新に失敗しました");
+    }
+  };
+
   const handleDeleteTemplate = async (id: string) => {
     try {
       const response = await fetch(`/api/work-schedule-templates/${id}`, {
@@ -215,7 +243,6 @@ export default function WorkScheduleTemplates() {
     return <div>読み込み中...</div>;
   }
 
-  const selectedProject = projects.find((p) => p.id === newItemProjectId);
   const orderedProjects = [...projects].sort(
     (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
   );
@@ -373,12 +400,44 @@ export default function WorkScheduleTemplates() {
 
                     {isExpanded && (
                       <div className="space-y-2 mt-3 pl-2 border-l-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            出勤時に自動適用:
+                          </span>
+                          {WEEKDAYS.map((weekday) => {
+                            const selected = includesWeekday(
+                              template.weekdayMask ?? 0,
+                              weekday.bit
+                            );
+                            return (
+                              <Button
+                                key={weekday.key}
+                                type="button"
+                                size="sm"
+                                variant={selected ? "default" : "outline"}
+                                className="h-7 px-2"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const nextMask = toggleWeekdayMask(
+                                    template.weekdayMask ?? 0,
+                                    weekday.bit
+                                  );
+                                  void handleWeekdayMaskUpdate(template.id, nextMask);
+                                }}
+                              >
+                                {weekday.label}
+                              </Button>
+                            );
+                          })}
+                        </div>
+
                         {template.items.map((item) => (
                           <div
                             key={item.id}
                             className="flex items-center gap-2 text-sm p-2 bg-muted rounded"
                           >
-                            <span className="font-mono">{item.startTime}-{item.endTime}</span>
+                            <span className="tabular-nums">{item.startTime}-{item.endTime}</span>
                             <span className="flex-1">{item.description}</span>
                             {item.project && (
                               <span className="text-xs text-muted-foreground">

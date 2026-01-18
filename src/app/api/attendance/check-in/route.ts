@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { startOfDay, endOfDay, subDays, isAfter } from "date-fns";
+import { weekdayMaskFromDate } from "@/lib/weekdayMask";
+import { applyWeekdayWorkScheduleTemplatesOnCheckIn } from "@/lib/workScheduleTemplateImport";
 
 const DEFAULT_ROUTINE_TITLES = [
   "今日の社内ニュースを見る",
@@ -171,6 +173,13 @@ export async function POST(request: NextRequest) {
           sortOrder: index,
         })),
       });
+    }
+
+    try {
+      const weekdayBit = weekdayMaskFromDate(dayStart);
+      await applyWeekdayWorkScheduleTemplatesOnCheckIn(prisma, dayStart, weekdayBit);
+    } catch (error) {
+      console.error("Failed to auto-apply weekday work schedule templates:", error);
     }
 
     return NextResponse.json(attendance);
