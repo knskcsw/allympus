@@ -16,6 +16,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { WEEKDAYS, includesWeekday, toggleWeekdayMask } from "@/lib/weekdayMask";
+import { parseJsonResponse } from "@/lib/api";
 
 type Project = {
   id: string;
@@ -56,20 +57,6 @@ type WorkScheduleTemplate = {
   weekdayMask: number;
   items: WorkScheduleTemplateItem[];
 };
-
-async function parseJsonResponse(response: Response) {
-  const text = await response.text();
-  if (!response.ok) {
-    let message = text;
-    try {
-      message = JSON.parse(text).error || text;
-    } catch {
-      // Fallback to raw text when not JSON.
-    }
-    throw new Error(message || "Request failed");
-  }
-  return text ? JSON.parse(text) : null;
-}
 
 export default function WorkScheduleTemplates() {
   const [templates, setTemplates] = useState<WorkScheduleTemplate[]>([]);
@@ -124,8 +111,8 @@ export default function WorkScheduleTemplates() {
         fetch("/api/projects", { cache: "no-store" }),
       ]);
       const [templatesData, projectsData] = await Promise.all([
-        parseJsonResponse(templatesResponse),
-        parseJsonResponse(projectsResponse),
+        parseJsonResponse<WorkScheduleTemplate[]>(templatesResponse),
+        parseJsonResponse<Project[]>(projectsResponse),
       ]);
       setTemplates(templatesData || []);
       setProjects(projectsData || []);

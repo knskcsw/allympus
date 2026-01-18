@@ -5,19 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
+import type { DailyTask } from "@/types/daily";
 
-export interface DailyTask {
-  id: string;
-  date: Date;
-  title: string;
-  description: string | null;
-  status: string;
-  priority: string;
-  estimatedMinutes: number | null;
-  sortOrder?: number;
-  createdAt?: string;
-  totalTimeSpent?: number;
-}
+export type { DailyTask };
 
 interface DailyTaskItemProps {
   task: DailyTask;

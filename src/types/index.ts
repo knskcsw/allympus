@@ -25,3 +25,24 @@ export interface AttendanceWithDuration {
   updatedAt: Date;
   workingMinutes: number | null;
 }
+
+// Project types
+import type { Project, Wbs } from "@/generated/prisma/client";
+import type { WorkType } from "@/lib/workTypes";
+
+export type ProjectWithWbs = Project & { wbsList: Wbs[] };
+
+export interface CreateProjectData {
+  code: string;
+  name: string;
+  abbreviation?: string;
+  workType: WorkType;
+  wbsList: { name: string }[];
+}
+
+export interface UpdateProjectData {
+  code: string;
+  name: string;
+  abbreviation?: string;
+  workType: WorkType;
+}

@@ -18,9 +18,9 @@ import {
 
 interface Attendance {
   id: string;
-  date: Date;
-  clockIn: Date | null;
-  clockOut: Date | null;
+  date: Date | string;
+  clockIn: Date | string | null;
+  clockOut: Date | string | null;
   breakMinutes: number;
   workMode?: string | null;
   sleepHours?: number | null;

@@ -25,12 +25,12 @@ import {
   ArrowDown,
   GripVertical,
 } from "lucide-react";
-import type { Project, Wbs } from "@/generated/prisma/client";
+import type { Wbs } from "@/generated/prisma/client";
+import type { ProjectWithWbs } from "@/types";
 import { WORK_TYPES, WORK_TYPE_LABELS, type WorkType } from "@/lib/workTypes";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
-type ProjectWithWbs = Project & { wbsList: Wbs[] };
+import { getProjectGroupKey } from "@/hooks/useProjects";
 
 interface ProjectListProps {
   projects: ProjectWithWbs[];
@@ -94,10 +94,6 @@ type SortableProjectItemProps = {
   >;
 };
 
-function getGroupKey(project: ProjectWithWbs) {
-  return `${project.isActive ? "1" : "0"}-${project.isKadminActive ? "1" : "0"}`;
-}
-
 function SortableProjectItem({
   project,
   index,
@@ -127,10 +123,10 @@ function SortableProjectItem({
   const isEditing = editingProject === project.id;
 
   const canMoveUp =
-    index > 0 && getGroupKey(projects[index - 1]) === getGroupKey(project);
+    index > 0 && getProjectGroupKey(projects[index - 1]) === getProjectGroupKey(project);
   const canMoveDown =
     index < projects.length - 1 &&
-    getGroupKey(projects[index + 1]) === getGroupKey(project);
+    getProjectGroupKey(projects[index + 1]) === getProjectGroupKey(project);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({

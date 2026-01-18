@@ -50,8 +50,8 @@ interface TimeEntry {
   project?: { id: string; code: string; name: string; abbreviation: string | null } | null;
   wbsId: string | null;
   wbs?: { id: string; name: string } | null;
-  startTime: Date;
-  endTime: Date | null;
+  startTime: Date | string;
+  endTime: Date | string | null;
   duration: number | null;
   note: string | null;
   allocations?: AllocationEntry[];

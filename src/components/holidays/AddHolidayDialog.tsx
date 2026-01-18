@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,22 +20,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format } from "date-fns";
+import type { AddHolidayData, HolidayType } from "@/lib/holidays";
 
 interface AddHolidayDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate: Date | null;
-  onAdd: (data: { date: Date; name: string; type: string }) => void;
+  onAdd: (data: AddHolidayData) => void;
 }
 
-const HOLIDAY_TYPES = [
+const HOLIDAY_TYPES: { value: HolidayType; label: string }[] = [
   { value: "PUBLIC_HOLIDAY", label: "祝日・国民の休日" },
   { value: "WEEKEND", label: "定休日（土日など）" },
   { value: "SPECIAL_HOLIDAY", label: "特別休日" },
   { value: "PAID_LEAVE", label: "有給休暇" },
 ];
 
-export function AddHolidayDialog({
+export const AddHolidayDialog = memo(function AddHolidayDialog({
   open,
   onOpenChange,
   selectedDate,
@@ -43,7 +44,7 @@ export function AddHolidayDialog({
 }: AddHolidayDialogProps) {
   const [date, setDate] = useState("");
   const [name, setName] = useState("");
-  const [type, setType] = useState("PUBLIC_HOLIDAY");
+  const [type, setType] = useState<HolidayType>("PUBLIC_HOLIDAY");
 
   useEffect(() => {
     if (selectedDate) {
@@ -55,20 +56,27 @@ export function AddHolidayDialog({
     setType("PUBLIC_HOLIDAY");
   }, [selectedDate, open]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
 
-    if (!date || !name || !type) {
-      alert("すべての項目を入力してください");
-      return;
-    }
+      if (!date || !name || !type) {
+        alert("すべての項目を入力してください");
+        return;
+      }
 
-    onAdd({
-      date: new Date(date),
-      name,
-      type,
-    });
-  };
+      onAdd({
+        date: new Date(date),
+        name,
+        type,
+      });
+    },
+    [date, name, type, onAdd]
+  );
+
+  const handleCancel = useCallback(() => {
+    onOpenChange(false);
+  }, [onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -104,7 +112,7 @@ export function AddHolidayDialog({
             </div>
             <div className="grid gap-2">
               <Label htmlFor="type">種類</Label>
-              <Select value={type} onValueChange={setType}>
+              <Select value={type} onValueChange={(v) => setType(v as HolidayType)}>
                 <SelectTrigger id="type">
                   <SelectValue />
                 </SelectTrigger>
@@ -119,7 +127,7 @@ export function AddHolidayDialog({
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={handleCancel}>
               キャンセル
             </Button>
             <Button type="submit">登録</Button>
@@ -128,4 +136,4 @@ export function AddHolidayDialog({
       </DialogContent>
     </Dialog>
   );
-}
+});
