@@ -13,14 +13,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { WEEKDAYS, includesWeekday, toggleWeekdayMask } from "@/lib/weekdayMask";
 
 type Project = {
   id: string;
   code: string;
   name: string;
+  abbreviation?: string | null;
   sortOrder?: number | null;
+  isActive?: boolean;
+  isKadminActive?: boolean;
   wbsList: { id: string; name: string }[];
+};
+
+type WorkScheduleTemplateAllocation = {
+  id: string;
+  itemId: string;
+  projectId: string;
+  project?: { id: string; code: string; name: string; abbreviation: string | null };
+  wbsId: string | null;
+  wbs?: { id: string; name: string } | null;
+  percentage: number;
 };
 
 type WorkScheduleTemplateItem = {
@@ -32,6 +47,7 @@ type WorkScheduleTemplateItem = {
   description: string;
   project?: { code: string; name: string } | null;
   wbs?: { name: string } | null;
+  allocations?: WorkScheduleTemplateAllocation[];
 };
 
 type WorkScheduleTemplate = {
@@ -77,6 +93,13 @@ export default function WorkScheduleTemplates() {
   const [newItemDescription, setNewItemDescription] = useState("");
   const [newItemProjectId, setNewItemProjectId] = useState<string>("");
   const [newItemWbsId, setNewItemWbsId] = useState<string>("");
+  const [newItemAllocationMode, setNewItemAllocationMode] = useState(false);
+  const [newItemAllocations, setNewItemAllocations] = useState<Array<{
+    id: string;
+    projectId: string;
+    wbsId: string;
+    percentage: number;
+  }>>([]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -182,23 +205,88 @@ export default function WorkScheduleTemplates() {
     }
   };
 
+  const addNewItemAllocation = () => {
+    setNewItemAllocations([
+      ...newItemAllocations,
+      {
+        id: `temp-${Date.now()}`,
+        projectId: "",
+        wbsId: "",
+        percentage: 0,
+      },
+    ]);
+  };
+
+  const removeNewItemAllocation = (id: string) => {
+    setNewItemAllocations(newItemAllocations.filter((a) => a.id !== id));
+  };
+
+  const updateNewItemAllocation = (
+    id: string,
+    updates: { projectId?: string; wbsId?: string; percentage?: number }
+  ) => {
+    setNewItemAllocations(
+      newItemAllocations.map((a) =>
+        a.id === id ? { ...a, ...updates } : a
+      )
+    );
+  };
+
+  const getNewItemTotalPercentage = () => {
+    return newItemAllocations.reduce((sum, a) => sum + a.percentage, 0);
+  };
+
   const handleAddItem = async (templateId: string) => {
     if (!newItemStartTime || !newItemEndTime || !newItemDescription.trim()) {
       alert("時刻と作業内容を入力してください");
       return;
     }
 
+    // Validate allocation mode
+    if (newItemAllocationMode) {
+      if (newItemAllocations.length === 0) {
+        alert("按分を1件以上追加してください");
+        return;
+      }
+
+      const totalPercentage = getNewItemTotalPercentage();
+      if (Math.abs(totalPercentage - 100) > 0.01) {
+        alert(`按分率の合計は100%にしてください（現在: ${totalPercentage.toFixed(1)}%）`);
+        return;
+      }
+
+      const hasEmptyProject = newItemAllocations.some((a) => !a.projectId);
+      if (hasEmptyProject) {
+        alert("全ての按分にプロジェクトを選択してください");
+        return;
+      }
+    }
+
     try {
+      const payload: any = {
+        startTime: newItemStartTime,
+        endTime: newItemEndTime,
+        description: newItemDescription.trim(),
+      };
+
+      if (newItemAllocationMode) {
+        payload.allocations = newItemAllocations.map((a) => ({
+          projectId: a.projectId,
+          wbsId: a.wbsId || null,
+          percentage: a.percentage,
+        }));
+        payload.projectId = null;
+        payload.wbsId = null;
+      } else {
+        payload.projectId = newItemProjectId || null;
+        payload.wbsId = newItemWbsId || null;
+        payload.allocations = [];
+      }
+
       const response = await fetch(`/api/work-schedule-templates/${templateId}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          startTime: newItemStartTime,
-          endTime: newItemEndTime,
-          description: newItemDescription.trim(),
-          projectId: newItemProjectId || null,
-          wbsId: newItemWbsId || null,
-        }),
+        body: JSON.stringify(payload),
       });
       await parseJsonResponse(response);
       setAddingItemToTemplate(null);
@@ -207,6 +295,8 @@ export default function WorkScheduleTemplates() {
       setNewItemDescription("");
       setNewItemProjectId("");
       setNewItemWbsId("");
+      setNewItemAllocationMode(false);
+      setNewItemAllocations([]);
       fetchData();
     } catch (error) {
       console.error("Failed to add item:", error);
@@ -243,7 +333,10 @@ export default function WorkScheduleTemplates() {
     return <div>読み込み中...</div>;
   }
 
-  const orderedProjects = [...projects].sort(
+  // Filter only active projects
+  const activeProjects = projects.filter((p) => p.isActive);
+
+  const orderedProjects = [...activeProjects].sort(
     (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
   );
 
@@ -254,11 +347,16 @@ export default function WorkScheduleTemplates() {
       for (const wbs of project.wbsList) {
         projectWbsOptions.push({
           value: `${project.id}|||${wbs.id}`,
-          label: `${project.code} / ${wbs.name}`,
+          label: `${project.abbreviation || project.code}■${wbs.name}`,
         });
       }
     }
   }
+
+  const getProjectSelectValue = (projectId: string, wbsId: string) => {
+    if (!projectId) return "none";
+    return wbsId ? `${projectId}|||${wbsId}` : `${projectId}|||`;
+  };
 
   return (
     <Card>
@@ -432,38 +530,81 @@ export default function WorkScheduleTemplates() {
                           })}
                         </div>
 
-                        {template.items.map((item) => (
-                          <div
-                            key={item.id}
-                            className="flex items-center gap-2 text-sm p-2 bg-muted rounded"
-                          >
-                            <span className="tabular-nums">{item.startTime}-{item.endTime}</span>
-                            <span className="flex-1">{item.description}</span>
-                            {item.project && (
-                              <span className="text-xs text-muted-foreground">
-                                {item.project.code}
-                                {item.wbs && ` / ${item.wbs.name}`}
-                              </span>
-                            )}
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              className="text-destructive"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setPendingDelete({ kind: "item", id: item.id });
-                              }}
-                              aria-label="削除"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
+                        {template.items.map((item) => {
+                          const hasAllocations = item.allocations && item.allocations.length > 0;
+                          return (
+                            <div key={item.id} className="space-y-1">
+                              <div className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
+                                <span className="tabular-nums">{item.startTime}-{item.endTime}</span>
+                                <span className="flex-1">{item.description}</span>
+                                {hasAllocations ? (
+                                  <span className="text-xs text-muted-foreground">
+                                    按分: {item.allocations!.length}件
+                                  </span>
+                                ) : item.project ? (
+                                  <span className="text-xs text-muted-foreground">
+                                    {item.project.code}
+                                    {item.wbs && `■${item.wbs.name}`}
+                                  </span>
+                                ) : null}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="text-destructive"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setPendingDelete({ kind: "item", id: item.id });
+                                  }}
+                                  aria-label="削除"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                              {hasAllocations && (
+                                <div className="pl-4 space-y-0.5">
+                                  {item.allocations!.map((alloc) => (
+                                    <div key={alloc.id} className="text-xs text-muted-foreground">
+                                      ↳ {alloc.percentage.toFixed(1)}% {alloc.project?.abbreviation || alloc.project?.code}
+                                      {alloc.wbs && `■${alloc.wbs.name}`}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
 
                         {addingItemToTemplate === template.id ? (
-                          <div className="p-2 bg-muted rounded">
+                          <div className="p-3 bg-muted rounded space-y-3">
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                id="new-item-allocation-mode"
+                                checked={newItemAllocationMode}
+                                onCheckedChange={(checked) => {
+                                  setNewItemAllocationMode(checked);
+                                  if (checked && newItemAllocations.length === 0) {
+                                    addNewItemAllocation();
+                                  }
+                                }}
+                              />
+                              <Label htmlFor="new-item-allocation-mode" className="cursor-pointer text-sm">
+                                按分モード {newItemAllocationMode && `(合計: ${getNewItemTotalPercentage().toFixed(1)}%)`}
+                              </Label>
+                              {newItemAllocationMode && (
+                                <span
+                                  className={
+                                    Math.abs(getNewItemTotalPercentage() - 100) < 0.01
+                                      ? "text-green-600 text-xs"
+                                      : "text-destructive text-xs"
+                                  }
+                                >
+                                  {Math.abs(getNewItemTotalPercentage() - 100) < 0.01 ? "✓" : "⚠ 100%にしてください"}
+                                </span>
+                              )}
+                            </div>
+
                             <div className="flex gap-2 items-start">
                               <Input
                                 value={newItemDescription}
@@ -471,31 +612,6 @@ export default function WorkScheduleTemplates() {
                                 placeholder="タスク名"
                                 className="flex-1"
                               />
-                              <Select
-                                value={newItemProjectId && newItemWbsId ? `${newItemProjectId}|||${newItemWbsId}` : "none"}
-                                onValueChange={(value) => {
-                                  if (value === "none") {
-                                    setNewItemProjectId("");
-                                    setNewItemWbsId("");
-                                  } else {
-                                    const [projectId, wbsId] = value.split("|||");
-                                    setNewItemProjectId(projectId);
-                                    setNewItemWbsId(wbsId);
-                                  }
-                                }}
-                              >
-                                <SelectTrigger className="w-[200px]">
-                                  <SelectValue placeholder="Project / WBS" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">集計なし</SelectItem>
-                                  {projectWbsOptions.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
                               <Input
                                 type="time"
                                 value={newItemStartTime}
@@ -510,6 +626,109 @@ export default function WorkScheduleTemplates() {
                                 placeholder="End"
                                 className="w-32"
                               />
+                            </div>
+
+                            {newItemAllocationMode ? (
+                              <div className="space-y-2">
+                                {newItemAllocations.map((alloc) => (
+                                  <div key={alloc.id} className="flex gap-2 items-end border p-2 rounded">
+                                    <div className="flex-1">
+                                      <Select
+                                        value={getProjectSelectValue(alloc.projectId, alloc.wbsId)}
+                                        onValueChange={(value) => {
+                                          if (value === "none") {
+                                            updateNewItemAllocation(alloc.id, {
+                                              projectId: "",
+                                              wbsId: "",
+                                            });
+                                          } else {
+                                            const [projectId, wbsId = ""] = value.split("|||");
+                                            updateNewItemAllocation(alloc.id, {
+                                              projectId,
+                                              wbsId,
+                                            });
+                                          }
+                                        }}
+                                      >
+                                        <SelectTrigger className="h-8">
+                                          <SelectValue placeholder="Project■WBS" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="none">選択してください</SelectItem>
+                                          {projectWbsOptions.map((option) => (
+                                            <SelectItem key={option.value} value={option.value}>
+                                              {option.label}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div className="w-20">
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        step="0.1"
+                                        value={alloc.percentage || ""}
+                                        onChange={(e) =>
+                                          updateNewItemAllocation(alloc.id, {
+                                            percentage: parseFloat(e.target.value) || 0,
+                                          })
+                                        }
+                                        className="h-8"
+                                        placeholder="%"
+                                      />
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => removeNewItemAllocation(alloc.id)}
+                                      disabled={newItemAllocations.length === 1}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ))}
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={addNewItemAllocation}
+                                >
+                                  + 按分を追加
+                                </Button>
+                              </div>
+                            ) : (
+                              <Select
+                                value={newItemProjectId && newItemWbsId ? `${newItemProjectId}|||${newItemWbsId}` : "none"}
+                                onValueChange={(value) => {
+                                  if (value === "none") {
+                                    setNewItemProjectId("");
+                                    setNewItemWbsId("");
+                                  } else {
+                                    const [projectId, wbsId] = value.split("|||");
+                                    setNewItemProjectId(projectId);
+                                    setNewItemWbsId(wbsId);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Project / WBS" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">集計なし</SelectItem>
+                                  {projectWbsOptions.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+
+                            <div className="flex gap-2">
                               <Button
                                 size="sm"
                                 onClick={() => handleAddItem(template.id)}
@@ -526,9 +745,11 @@ export default function WorkScheduleTemplates() {
                                   setNewItemDescription("");
                                   setNewItemProjectId("");
                                   setNewItemWbsId("");
+                                  setNewItemAllocationMode(false);
+                                  setNewItemAllocations([]);
                                 }}
                               >
-                                ×
+                                キャンセル
                               </Button>
                             </div>
                           </div>

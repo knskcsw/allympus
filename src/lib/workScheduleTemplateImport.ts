@@ -91,7 +91,12 @@ export async function importWorkScheduleTemplateForDate(
   const template = await prisma.workScheduleTemplate.findUnique({
     where: { id: templateId },
     include: {
-      items: { orderBy: { sortOrder: "asc" } },
+      items: {
+        include: {
+          allocations: true,
+        },
+        orderBy: { sortOrder: "asc" },
+      },
     },
   });
 
@@ -164,6 +169,9 @@ export async function importWorkScheduleTemplateForDate(
 
     const durationSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
 
+    // Check if item has allocations
+    const hasAllocations = item.allocations && item.allocations.length > 0;
+
     const timeEntry = await prisma.timeEntry.create({
       data: {
         dailyTaskId,
@@ -171,8 +179,15 @@ export async function importWorkScheduleTemplateForDate(
         endTime,
         duration: durationSeconds,
         note: null,
-        projectId: item.projectId,
-        wbsId: item.wbsId,
+        projectId: hasAllocations ? null : item.projectId,
+        wbsId: hasAllocations ? null : item.wbsId,
+        allocations: hasAllocations ? {
+          create: item.allocations!.map((alloc) => ({
+            projectId: alloc.projectId,
+            wbsId: alloc.wbsId,
+            percentage: alloc.percentage,
+          })),
+        } : undefined,
       },
       select: { id: true },
     });

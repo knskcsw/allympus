@@ -14,6 +14,7 @@ export async function POST(
     const description = typeof body?.description === "string" ? body.description.trim() : "";
     const projectId = typeof body?.projectId === "string" ? body.projectId : null;
     const wbsId = typeof body?.wbsId === "string" ? body.wbsId : null;
+    const allocations = Array.isArray(body?.allocations) ? body.allocations : [];
 
     if (!startTime || !endTime || !description) {
       return NextResponse.json(
@@ -31,6 +32,29 @@ export async function POST(
       );
     }
 
+    // Validate allocations if provided
+    if (allocations.length > 0) {
+      const totalPercentage = allocations.reduce(
+        (sum: number, a: any) => sum + (a.percentage || 0),
+        0
+      );
+      if (Math.abs(totalPercentage - 100) > 0.01) {
+        return NextResponse.json(
+          { error: "Allocation percentages must sum to 100%" },
+          { status: 400 }
+        );
+      }
+      const hasInvalidAllocation = allocations.some(
+        (a: any) => !a.projectId || typeof a.projectId !== "string"
+      );
+      if (hasInvalidAllocation) {
+        return NextResponse.json(
+          { error: "All allocations must have a projectId" },
+          { status: 400 }
+        );
+      }
+    }
+
     const existing = await prisma.workScheduleTemplateItem.aggregate({
       where: { templateId },
       _max: { sortOrder: true },
@@ -43,13 +67,26 @@ export async function POST(
         startTime,
         endTime,
         description,
-        projectId,
-        wbsId,
+        projectId: allocations.length > 0 ? null : projectId,
+        wbsId: allocations.length > 0 ? null : wbsId,
         sortOrder: nextSortOrder,
+        allocations: allocations.length > 0 ? {
+          create: allocations.map((a: any) => ({
+            projectId: a.projectId,
+            wbsId: a.wbsId || null,
+            percentage: a.percentage,
+          })),
+        } : undefined,
       },
       include: {
         project: true,
         wbs: true,
+        allocations: {
+          include: {
+            project: true,
+            wbs: true,
+          },
+        },
       },
     });
 

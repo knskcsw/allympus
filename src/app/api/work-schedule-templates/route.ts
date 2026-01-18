@@ -12,6 +12,12 @@ export async function GET() {
           include: {
             project: true,
             wbs: true,
+            allocations: {
+              include: {
+                project: true,
+                wbs: true,
+              },
+            },
           },
           orderBy: { sortOrder: "asc" },
         },
@@ -58,6 +64,12 @@ export async function POST(request: NextRequest) {
           include: {
             project: true,
             wbs: true,
+            allocations: {
+              include: {
+                project: true,
+                wbs: true,
+              },
+            },
           },
           orderBy: { sortOrder: "asc" },
         },
