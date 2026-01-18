@@ -5,12 +5,20 @@ import { startOfDay, endOfDay } from "date-fns";
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const dateParam = searchParams.get("date");
+  const startDate = searchParams.get("startDate");
+  const endDate = searchParams.get("endDate");
   const status = searchParams.get("status");
 
   const where: any = {};
 
-  // Filter by date if provided
-  if (dateParam) {
+  // Filter by date range if provided
+  if (startDate && endDate) {
+    where.date = {
+      gte: new Date(startDate),
+      lte: new Date(endDate),
+    };
+  } else if (dateParam) {
+    // Filter by single date if provided
     const date = new Date(dateParam);
     where.date = {
       gte: startOfDay(date),
