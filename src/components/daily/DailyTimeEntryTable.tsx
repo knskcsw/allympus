@@ -632,15 +632,19 @@ export default function DailyTimeEntryTable({
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-left">
+                      <TableCell className="text-left max-w-[200px]">
                         {hasAllocations ? (
                           <span className="text-muted-foreground">
                             按分: {entry.allocations!.length}件
                           </span>
                         ) : entry.project && entry.wbs ? (
-                          `${entry.project.abbreviation || entry.project.code}■${entry.wbs.name}`
+                          <span className="truncate block">
+                            {`${entry.project.abbreviation || entry.project.code}■${entry.wbs.name}`}
+                          </span>
                         ) : entry.project ? (
-                          `${entry.project.code} - ${entry.project.name}`
+                          <span className="truncate block">
+                            {`${entry.project.code} - ${entry.project.name}`}
+                          </span>
                         ) : (
                           "集計なし"
                         )}
@@ -708,9 +712,11 @@ export default function DailyTimeEntryTable({
                           <TableCell className="text-left pl-12">
                             <span className="text-muted-foreground text-sm">↳</span>
                           </TableCell>
-                          <TableCell className="text-left text-sm">
-                            {alloc.percentage.toFixed(1)}% {alloc.project?.abbreviation || alloc.project?.code}
-                            {alloc.wbs && `■${alloc.wbs.name}`}
+                          <TableCell className="text-left text-sm max-w-[200px]">
+                            <span className="truncate block">
+                              {alloc.percentage.toFixed(1)}% {alloc.project?.abbreviation || alloc.project?.code}
+                              {alloc.wbs && `■${alloc.wbs.name}`}
+                            </span>
                           </TableCell>
                           <TableCell className="text-left text-sm text-muted-foreground">
                             -
@@ -838,16 +844,16 @@ export default function DailyTimeEntryTable({
                   <SelectTrigger className="h-9 w-full justify-start text-left">
                     <SelectValue className="text-left" placeholder="Project" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-w-[500px]">
                     <SelectItem value="none">集計なし</SelectItem>
                     {breakProjectOption && (
                       <SelectItem value={breakProjectOption.value}>
-                        {breakProjectOption.label}
+                        <span className="truncate block">{breakProjectOption.label}</span>
                       </SelectItem>
                     )}
                     {projectWbsOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
-                        {option.label}
+                        <span className="truncate block">{option.label}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -997,17 +1003,17 @@ export default function DailyTimeEntryTable({
                         <SelectTrigger className="h-9">
                           <SelectValue placeholder="プロジェクトを選択" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-w-[500px]">
                           <SelectItem value="none">選択してください</SelectItem>
                           {breakProjectOption && (
                             <SelectItem value={breakProjectOption.value}>
-                              {breakProjectOption.label}
+                              <span className="truncate block">{breakProjectOption.label}</span>
                             </SelectItem>
                           )}
                           {editProjectWbsOptions.length > 0 ? (
                             editProjectWbsOptions.map((option) => (
                               <SelectItem key={option.value} value={option.value}>
-                                {option.label}
+                                <span className="truncate block">{option.label}</span>
                               </SelectItem>
                             ))
                           ) : (
@@ -1084,16 +1090,16 @@ export default function DailyTimeEntryTable({
                   <SelectTrigger id="project" className="h-9">
                     <SelectValue placeholder="プロジェクトを選択" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-w-[500px]">
                     <SelectItem value="none">集計なし</SelectItem>
                     {breakProjectOption && (
                       <SelectItem value={breakProjectOption.value}>
-                        {breakProjectOption.label}
+                        <span className="truncate block">{breakProjectOption.label}</span>
                       </SelectItem>
                     )}
                     {editProjectWbsOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
-                        {option.label}
+                        <span className="truncate block">{option.label}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
