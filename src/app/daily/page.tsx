@@ -295,6 +295,14 @@ export default function DailyPage() {
       return;
     }
 
+    // Convert hh:mm format to decimal hours
+    const [hours, minutes] = sleepHours.split(":").map(Number);
+    if (isNaN(hours) || isNaN(minutes)) {
+      alert("睡眠時間の形式が正しくありません");
+      return;
+    }
+    const sleepHoursDecimal = hours + minutes / 60;
+
     setIsSubmitting(true);
     try {
       const response = await fetch("/api/attendance/check-in", {
@@ -304,7 +312,7 @@ export default function DailyPage() {
           date: format(selectedDate, "yyyy-MM-dd"),
           clockIn: checkInTime,
           workMode,
-          sleepHours,
+          sleepHours: sleepHoursDecimal,
         }),
       });
 
@@ -592,15 +600,13 @@ export default function DailyPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sleepHours">睡眠時間（h）</Label>
+                <Label htmlFor="sleepHours">睡眠時間</Label>
                 <Input
                   id="sleepHours"
-                  type="number"
-                  min="0"
-                  step="0.1"
+                  type="time"
                   value={sleepHours}
                   onChange={(e) => setSleepHours(e.target.value)}
-                  placeholder="例: 6.5"
+                  placeholder="例: 07:30"
                   required
                 />
               </div>

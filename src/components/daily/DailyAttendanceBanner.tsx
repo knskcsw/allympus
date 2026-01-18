@@ -250,7 +250,11 @@ export default function DailyAttendanceBanner({
                   <span className="font-medium">
                     {attendance.sleepHours !== null &&
                     attendance.sleepHours !== undefined
-                      ? `${attendance.sleepHours}h`
+                      ? (() => {
+                          const h = Math.floor(attendance.sleepHours);
+                          const m = Math.round((attendance.sleepHours - h) * 60);
+                          return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+                        })()
                       : "-"}
                   </span>
                 </div>
@@ -352,12 +356,10 @@ export default function DailyAttendanceBanner({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="editSleepHours">睡眠時間（h）</Label>
+                <Label htmlFor="editSleepHours">睡眠時間</Label>
                 <Input
                   id="editSleepHours"
-                  type="number"
-                  min="0"
-                  step="0.1"
+                  type="time"
                   value={formState.sleepHours}
                   onChange={(e) =>
                     setFormState({
@@ -365,7 +367,7 @@ export default function DailyAttendanceBanner({
                       sleepHours: e.target.value,
                     })
                   }
-                  placeholder="例: 6.5"
+                  placeholder="例: 07:30"
                 />
               </div>
               <div className="space-y-2">

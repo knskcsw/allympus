@@ -89,7 +89,11 @@ export function AttendanceList({ attendances, onUpdate }: AttendanceListProps) {
               <TableCell>
                 {attendance.sleepHours !== null &&
                 attendance.sleepHours !== undefined
-                  ? `${attendance.sleepHours}h`
+                  ? (() => {
+                      const h = Math.floor(attendance.sleepHours);
+                      const m = Math.round((attendance.sleepHours - h) * 60);
+                      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+                    })()
                   : "-"}
               </TableCell>
               <TableCell>
