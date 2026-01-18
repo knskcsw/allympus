@@ -101,6 +101,21 @@ export default function WorkScheduleTemplates() {
     percentage: number;
   }>>([]);
 
+  // Edit item form state
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingItemStartTime, setEditingItemStartTime] = useState("");
+  const [editingItemEndTime, setEditingItemEndTime] = useState("");
+  const [editingItemDescription, setEditingItemDescription] = useState("");
+  const [editingItemProjectId, setEditingItemProjectId] = useState<string>("");
+  const [editingItemWbsId, setEditingItemWbsId] = useState<string>("");
+  const [editingItemAllocationMode, setEditingItemAllocationMode] = useState(false);
+  const [editingItemAllocations, setEditingItemAllocations] = useState<Array<{
+    id: string;
+    projectId: string;
+    wbsId: string;
+    percentage: number;
+  }>>([]);
+
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -315,6 +330,136 @@ export default function WorkScheduleTemplates() {
       console.error("Failed to delete item:", error);
       alert("アイテムの削除に失敗しました");
     }
+  };
+
+  const addEditItemAllocation = () => {
+    setEditingItemAllocations([
+      ...editingItemAllocations,
+      {
+        id: `temp-${Date.now()}`,
+        projectId: "",
+        wbsId: "",
+        percentage: 0,
+      },
+    ]);
+  };
+
+  const removeEditItemAllocation = (id: string) => {
+    setEditingItemAllocations(editingItemAllocations.filter((a) => a.id !== id));
+  };
+
+  const updateEditItemAllocation = (
+    id: string,
+    updates: { projectId?: string; wbsId?: string; percentage?: number }
+  ) => {
+    setEditingItemAllocations(
+      editingItemAllocations.map((a) =>
+        a.id === id ? { ...a, ...updates } : a
+      )
+    );
+  };
+
+  const getEditItemTotalPercentage = () => {
+    return editingItemAllocations.reduce((sum, a) => sum + a.percentage, 0);
+  };
+
+  const handleStartEditItem = (item: WorkScheduleTemplateItem) => {
+    setEditingItemId(item.id);
+    setEditingItemStartTime(item.startTime);
+    setEditingItemEndTime(item.endTime);
+    setEditingItemDescription(item.description);
+
+    const hasAllocations = !!(item.allocations && item.allocations.length > 0);
+    setEditingItemAllocationMode(hasAllocations);
+
+    if (hasAllocations) {
+      setEditingItemAllocations(
+        item.allocations!.map((alloc) => ({
+          id: alloc.id,
+          projectId: alloc.projectId,
+          wbsId: alloc.wbsId || "",
+          percentage: alloc.percentage,
+        }))
+      );
+      setEditingItemProjectId("");
+      setEditingItemWbsId("");
+    } else {
+      setEditingItemProjectId(item.projectId || "");
+      setEditingItemWbsId(item.wbsId || "");
+      setEditingItemAllocations([]);
+    }
+  };
+
+  const handleUpdateItem = async (itemId: string) => {
+    if (!editingItemStartTime || !editingItemEndTime || !editingItemDescription.trim()) {
+      alert("時刻と作業内容を入力してください");
+      return;
+    }
+
+    // Validate allocation mode
+    if (editingItemAllocationMode) {
+      if (editingItemAllocations.length === 0) {
+        alert("按分を1件以上追加してください");
+        return;
+      }
+
+      const totalPercentage = getEditItemTotalPercentage();
+      if (Math.abs(totalPercentage - 100) > 0.01) {
+        alert(`按分率の合計は100%にしてください（現在: ${totalPercentage.toFixed(1)}%）`);
+        return;
+      }
+
+      const hasEmptyProject = editingItemAllocations.some((a) => !a.projectId);
+      if (hasEmptyProject) {
+        alert("全ての按分にプロジェクトを選択してください");
+        return;
+      }
+    }
+
+    try {
+      const payload: any = {
+        startTime: editingItemStartTime,
+        endTime: editingItemEndTime,
+        description: editingItemDescription.trim(),
+      };
+
+      if (editingItemAllocationMode) {
+        payload.allocations = editingItemAllocations.map((a) => ({
+          projectId: a.projectId,
+          wbsId: a.wbsId || null,
+          percentage: a.percentage,
+        }));
+        payload.projectId = null;
+        payload.wbsId = null;
+      } else {
+        payload.projectId = editingItemProjectId || null;
+        payload.wbsId = editingItemWbsId || null;
+        payload.allocations = [];
+      }
+
+      const response = await fetch(`/api/work-schedule-templates/items/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      await parseJsonResponse(response);
+      handleCancelEditItem();
+      fetchData();
+    } catch (error) {
+      console.error("Failed to update item:", error);
+      alert("アイテムの更新に失敗しました");
+    }
+  };
+
+  const handleCancelEditItem = () => {
+    setEditingItemId(null);
+    setEditingItemStartTime("");
+    setEditingItemEndTime("");
+    setEditingItemDescription("");
+    setEditingItemProjectId("");
+    setEditingItemWbsId("");
+    setEditingItemAllocationMode(false);
+    setEditingItemAllocations([]);
   };
 
   const toggleTemplateExpanded = (templateId: string) => {
@@ -532,45 +677,232 @@ export default function WorkScheduleTemplates() {
 
                         {template.items.map((item) => {
                           const hasAllocations = item.allocations && item.allocations.length > 0;
+                          const isEditing = editingItemId === item.id;
+
                           return (
                             <div key={item.id} className="space-y-1">
-                              <div className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
-                                <span className="tabular-nums">{item.startTime}-{item.endTime}</span>
-                                <span className="flex-1">{item.description}</span>
-                                {hasAllocations ? (
-                                  <span className="text-xs text-muted-foreground">
-                                    按分: {item.allocations!.length}件
-                                  </span>
-                                ) : item.project ? (
-                                  <span className="text-xs text-muted-foreground">
-                                    {item.project.code}
-                                    {item.wbs && `■${item.wbs.name}`}
-                                  </span>
-                                ) : null}
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  className="text-destructive"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setPendingDelete({ kind: "item", id: item.id });
-                                  }}
-                                  aria-label="削除"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                              {hasAllocations && (
-                                <div className="pl-4 space-y-0.5">
-                                  {item.allocations!.map((alloc) => (
-                                    <div key={alloc.id} className="text-xs text-muted-foreground">
-                                      ↳ {alloc.percentage.toFixed(1)}% {alloc.project?.abbreviation || alloc.project?.code}
-                                      {alloc.wbs && `■${alloc.wbs.name}`}
+                              {isEditing ? (
+                                <div className="p-3 bg-muted rounded space-y-3">
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      id={`edit-item-allocation-mode-${item.id}`}
+                                      checked={editingItemAllocationMode}
+                                      onCheckedChange={(checked) => {
+                                        setEditingItemAllocationMode(checked);
+                                        if (checked && editingItemAllocations.length === 0) {
+                                          addEditItemAllocation();
+                                        }
+                                      }}
+                                    />
+                                    <Label htmlFor={`edit-item-allocation-mode-${item.id}`} className="cursor-pointer text-sm">
+                                      按分モード {editingItemAllocationMode && `(合計: ${getEditItemTotalPercentage().toFixed(1)}%)`}
+                                    </Label>
+                                    {editingItemAllocationMode && (
+                                      <span
+                                        className={
+                                          Math.abs(getEditItemTotalPercentage() - 100) < 0.01
+                                            ? "text-green-600 text-xs"
+                                            : "text-destructive text-xs"
+                                        }
+                                      >
+                                        {Math.abs(getEditItemTotalPercentage() - 100) < 0.01 ? "✓" : "⚠ 100%にしてください"}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="flex gap-2 items-start">
+                                    <Input
+                                      value={editingItemDescription}
+                                      onChange={(e) => setEditingItemDescription(e.target.value)}
+                                      placeholder="タスク名"
+                                      className="flex-1"
+                                    />
+                                    <Input
+                                      type="time"
+                                      value={editingItemStartTime}
+                                      onChange={(e) => setEditingItemStartTime(e.target.value)}
+                                      placeholder="Start"
+                                      className="w-32"
+                                    />
+                                    <Input
+                                      type="time"
+                                      value={editingItemEndTime}
+                                      onChange={(e) => setEditingItemEndTime(e.target.value)}
+                                      placeholder="End"
+                                      className="w-32"
+                                    />
+                                  </div>
+
+                                  {editingItemAllocationMode ? (
+                                    <div className="space-y-2">
+                                      {editingItemAllocations.map((alloc) => (
+                                        <div key={alloc.id} className="flex gap-2 items-end border p-2 rounded">
+                                          <div className="flex-1">
+                                            <Select
+                                              value={getProjectSelectValue(alloc.projectId, alloc.wbsId)}
+                                              onValueChange={(value) => {
+                                                if (value === "none") {
+                                                  updateEditItemAllocation(alloc.id, {
+                                                    projectId: "",
+                                                    wbsId: "",
+                                                  });
+                                                } else {
+                                                  const [projectId, wbsId = ""] = value.split("|||");
+                                                  updateEditItemAllocation(alloc.id, {
+                                                    projectId,
+                                                    wbsId,
+                                                  });
+                                                }
+                                              }}
+                                            >
+                                              <SelectTrigger className="h-8">
+                                                <SelectValue placeholder="Project■WBS" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="none">選択してください</SelectItem>
+                                                {projectWbsOptions.map((option) => (
+                                                  <SelectItem key={option.value} value={option.value}>
+                                                    {option.label}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          </div>
+                                          <div className="w-20">
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              max="100"
+                                              step="0.1"
+                                              value={alloc.percentage || ""}
+                                              onChange={(e) =>
+                                                updateEditItemAllocation(alloc.id, {
+                                                  percentage: parseFloat(e.target.value) || 0,
+                                                })
+                                              }
+                                              className="h-8"
+                                              placeholder="%"
+                                            />
+                                          </div>
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => removeEditItemAllocation(alloc.id)}
+                                            disabled={editingItemAllocations.length === 1}
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      ))}
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={addEditItemAllocation}
+                                      >
+                                        + 按分を追加
+                                      </Button>
                                     </div>
-                                  ))}
+                                  ) : (
+                                    <Select
+                                      value={editingItemProjectId && editingItemWbsId ? `${editingItemProjectId}|||${editingItemWbsId}` : "none"}
+                                      onValueChange={(value) => {
+                                        if (value === "none") {
+                                          setEditingItemProjectId("");
+                                          setEditingItemWbsId("");
+                                        } else {
+                                          const [projectId, wbsId] = value.split("|||");
+                                          setEditingItemProjectId(projectId);
+                                          setEditingItemWbsId(wbsId);
+                                        }
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Project / WBS" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="none">集計なし</SelectItem>
+                                        {projectWbsOptions.map((option) => (
+                                          <SelectItem key={option.value} value={option.value}>
+                                            {option.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleUpdateItem(item.id)}
+                                    >
+                                      保存
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={handleCancelEditItem}
+                                    >
+                                      キャンセル
+                                    </Button>
+                                  </div>
                                 </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
+                                    <span className="tabular-nums">{item.startTime}-{item.endTime}</span>
+                                    <span className="flex-1">{item.description}</span>
+                                    {hasAllocations ? (
+                                      <span className="text-xs text-muted-foreground">
+                                        按分: {item.allocations!.length}件
+                                      </span>
+                                    ) : item.project ? (
+                                      <span className="text-xs text-muted-foreground">
+                                        {item.project.code}
+                                        {item.wbs && `■${item.wbs.name}`}
+                                      </span>
+                                    ) : null}
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleStartEditItem(item);
+                                      }}
+                                      aria-label="編集"
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      className="text-destructive"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setPendingDelete({ kind: "item", id: item.id });
+                                      }}
+                                      aria-label="削除"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                  {hasAllocations && (
+                                    <div className="pl-4 space-y-0.5">
+                                      {item.allocations!.map((alloc) => (
+                                        <div key={alloc.id} className="text-xs text-muted-foreground">
+                                          ↳ {alloc.percentage.toFixed(1)}% {alloc.project?.abbreviation || alloc.project?.code}
+                                          {alloc.wbs && `■${alloc.wbs.name}`}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           );
