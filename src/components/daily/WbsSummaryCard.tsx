@@ -14,6 +14,7 @@ interface WbsSummary {
   wbsName: string;
   totalSeconds: number;
   totalHours: number;
+  taskNames: string[];
 }
 
 interface WbsSummaryCardProps {
@@ -127,12 +128,19 @@ export default function WbsSummaryCard({
                     {group.items.map((item) => (
                       <div
                         key={`${item.projectId}-${item.wbsId}`}
-                        className="flex items-center justify-between text-sm"
+                        className="flex items-center justify-between text-sm gap-2"
                       >
-                        <span className="text-muted-foreground">
-                          {item.wbsName}
-                        </span>
-                        <span className="font-mono font-medium">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <span className="text-muted-foreground flex-shrink-0">
+                            {item.wbsName}
+                          </span>
+                          {item.taskNames && item.taskNames.length > 0 && (
+                            <span className="text-xs text-muted-foreground truncate">
+                              {item.taskNames.join(' / ')}
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-mono font-medium flex-shrink-0">
                           {item.totalHours.toFixed(2)}
                         </span>
                       </div>

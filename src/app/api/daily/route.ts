@@ -138,6 +138,7 @@ export async function GET(request: NextRequest) {
         wbsId: string | null;
         wbsName: string;
         totalSeconds: number;
+        taskNames: Set<string>;
       }
     >();
 
@@ -147,7 +148,8 @@ export async function GET(request: NextRequest) {
       projectAbbreviation: string | null,
       wbsId: string | null,
       wbsName: string,
-      durationSeconds: number
+      durationSeconds: number,
+      taskName?: string
     ) => {
       if (!projectId) return;
 
@@ -156,7 +158,14 @@ export async function GET(request: NextRequest) {
 
       if (existing) {
         existing.totalSeconds += durationSeconds;
+        if (taskName) {
+          existing.taskNames.add(taskName);
+        }
       } else {
+        const taskNames = new Set<string>();
+        if (taskName) {
+          taskNames.add(taskName);
+        }
         wbsSummaryMap.set(key, {
           projectId,
           projectName,
@@ -164,11 +173,15 @@ export async function GET(request: NextRequest) {
           wbsId,
           wbsName,
           totalSeconds: durationSeconds,
+          taskNames,
         });
       }
     };
 
     timeEntries.forEach((entry) => {
+      // Get task name from either dailyTask or routineTask
+      const taskName = entry.dailyTask?.title || entry.routineTask?.title;
+
       // Check for allocations first
       if (entry.allocations && entry.allocations.length > 0) {
         entry.allocations.forEach((alloc) => {
@@ -182,7 +195,8 @@ export async function GET(request: NextRequest) {
             alloc.project?.abbreviation || null,
             alloc.wbsId,
             alloc.wbs?.name || "No WBS",
-            allocatedDuration
+            allocatedDuration,
+            taskName
           );
         });
       } else if (entry.projectId) {
@@ -193,7 +207,8 @@ export async function GET(request: NextRequest) {
           entry.project?.abbreviation || null,
           entry.wbsId,
           entry.wbs?.name || "No WBS",
-          entry.duration || 0
+          entry.duration || 0,
+          taskName
         );
       }
     });
@@ -202,6 +217,7 @@ export async function GET(request: NextRequest) {
     const wbsSummary = Array.from(wbsSummaryMap.values()).map((item) => ({
       ...item,
       totalHours: Number((item.totalSeconds / 3600).toFixed(2)),
+      taskNames: Array.from(item.taskNames),
     }));
 
     // Return aggregated data
