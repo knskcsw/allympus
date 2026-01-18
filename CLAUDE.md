@@ -53,8 +53,16 @@ This project uses git worktrees for parallel development on multiple features/is
 
 ### CRITICAL RULES - READ BEFORE STARTING ANY WORK
 
+**⚠️ BEFORE ANY IMPLEMENTATION (including after Plan Mode approval):**
+```bash
+# ALWAYS check current branch FIRST before writing any code
+git branch --show-current
+```
+- If on `main` → **STOP!** Create worktree first or use `/worktree-start`
+- If on feature branch in worktree → OK to proceed
+
 **NEVER:**
-- Edit files on `main` branch directly
+- Edit files on `main` branch directly (even after Plan Mode approval!)
 - Start dev server without checking current directory and branch
 - Use port 3000 or 3002 without checking for conflicts
 - Merge to main without user confirmation
@@ -67,6 +75,10 @@ This project uses git worktrees for parallel development on multiple features/is
 4. Use available port (avoid conflicts)
 5. Wait for user to test before merging
 6. Clean up after merge (stop server, delete worktree/branch)
+
+**Available Skills:**
+- `/worktree-start` - Start work on a new feature/issue (creates worktree automatically)
+- `/worktree-finish` - Merge, cleanup worktree, and close issue
 
 ### Standard Workflow
 
