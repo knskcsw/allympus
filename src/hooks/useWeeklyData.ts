@@ -86,7 +86,7 @@ export function useWeeklyData(weekRange: WeekRange) {
     };
 
     fetchData();
-  }, [weekRange.start, weekRange.end]);
+  }, [weekRange.start.getTime(), weekRange.end.getTime()]);
 
   return { data, loading, error };
 }
