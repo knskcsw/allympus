@@ -276,7 +276,7 @@ export default function DailyAttendanceBanner({
             )}
             {showClockOut && attendance?.clockIn && !attendance.clockOut && (
               <Button size="sm" onClick={onClockOut}>
-                退勤する
+                退勤
               </Button>
             )}
             {attendance && (
