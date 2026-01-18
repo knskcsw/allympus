@@ -162,3 +162,19 @@ ps aux | grep "next dev" | grep -v grep
 - **Worktrees**: `~/.claude-worktrees/manage-task-app/<worktree-name>`
 
 When working in a worktree, always verify you're in the correct directory before making changes or starting servers.
+
+## Self-Improvement
+
+作業完了時（特に`/worktree-finish`実行後）、以下を振り返る：
+
+**今回の作業で問題・非効率があった場合：**
+- CLAUDE.mdのルールに不足があれば追記・修正
+- `.claude/skills/`のスキル定義に改善点があれば修正
+- 同じミスを繰り返さないための仕組みを追加
+
+**例：**
+- 「mainで直接作業してしまった」→ ブランチ確認ルールを強調追加
+- 「手順を忘れた」→ チェックリストを追加
+- 「スキルの説明が不足していた」→ スキルのInstructionsを改善
+
+この自己改善サイクルにより、CLAUDE.mdとskillsは継続的に進化する。
