@@ -276,7 +276,7 @@ export default function DailyAttendanceBanner({
             )}
             {showClockOut && attendance?.clockIn && !attendance.clockOut && (
               <Button size="sm" onClick={onClockOut}>
-                退勤する
+                退勤
               </Button>
             )}
             {attendance && (
@@ -294,7 +294,7 @@ export default function DailyAttendanceBanner({
         </div>
         {attendance && isEditing && (
           <div className="mt-4 border-t pt-4">
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="editClockIn">出勤時間</Label>
                 <Input
@@ -318,21 +318,8 @@ export default function DailyAttendanceBanner({
                   }
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="editBreak">休憩（分）</Label>
-                <Input
-                  id="editBreak"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={formState.breakMinutes}
-                  onChange={(e) =>
-                    setFormState({ ...formState, breakMinutes: e.target.value })
-                  }
-                />
-              </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-3 mt-4">
+            <div className="grid gap-4 md:grid-cols-2 mt-4">
               <div className="space-y-2">
                 <Label htmlFor="editWorkMode">出社形態</Label>
                 <Select
@@ -368,17 +355,6 @@ export default function DailyAttendanceBanner({
                     })
                   }
                   placeholder="例: 07:30"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="editNote">メモ</Label>
-                <Input
-                  id="editNote"
-                  value={formState.note}
-                  onChange={(e) =>
-                    setFormState({ ...formState, note: e.target.value })
-                  }
-                  placeholder="任意"
                 />
               </div>
             </div>
