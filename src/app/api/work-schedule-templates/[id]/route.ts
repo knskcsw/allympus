@@ -45,6 +45,9 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
     const name = typeof body?.name === "string" ? body.name.trim() : undefined;
+    const weekdayMaskRaw = body?.weekdayMask;
+    const weekdayMask =
+      weekdayMaskRaw === undefined ? undefined : Number(weekdayMaskRaw);
 
     if (name !== undefined && !name) {
       return NextResponse.json(
@@ -53,10 +56,20 @@ export async function PATCH(
       );
     }
 
+    if (weekdayMask !== undefined) {
+      if (!Number.isInteger(weekdayMask) || weekdayMask < 0 || weekdayMask > 127) {
+        return NextResponse.json(
+          { error: "weekdayMask must be an integer between 0 and 127" },
+          { status: 400 }
+        );
+      }
+    }
+
     const template = await prisma.workScheduleTemplate.update({
       where: { id },
       data: {
         ...(name !== undefined && { name }),
+        ...(weekdayMask !== undefined && { weekdayMask }),
       },
       include: {
         items: {

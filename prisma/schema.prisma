@@ -244,13 +244,28 @@ model MonthlyVacationHours {
 model WorkScheduleTemplate {
   id        String                     @id @default(cuid())
   name      String
+  /// Mon..Sun bitmask (Mon=1, Tue=2, ..., Sun=64). 0 means disabled.
+  weekdayMask Int                      @default(0)
   sortOrder Int                        @default(0)
   createdAt DateTime                   @default(now())
   updatedAt DateTime                   @updatedAt
 
   items WorkScheduleTemplateItem[]
+  applications WorkScheduleTemplateApplication[]
 
   @@map("work_schedule_templates")
+}
+
+model WorkScheduleTemplateApplication {
+  id         String                @id @default(cuid())
+  templateId String
+  template   WorkScheduleTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  date       DateTime
+  createdAt  DateTime              @default(now())
+
+  @@unique([templateId, date])
+  @@index([date])
+  @@map("work_schedule_template_applications")
 }
 
 model WorkScheduleTemplateItem {
