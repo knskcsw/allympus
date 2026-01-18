@@ -3,7 +3,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { format } from "date-fns";
 import type { MorningRoutineItem, DailyData } from "@/types/daily";
-import { fetchApi } from "@/lib/daily-utils";
 
 interface UseMorningRoutineReturn {
   // State
@@ -21,6 +20,11 @@ interface UseMorningRoutineReturn {
   editingRoutineTitle: string;
   setEditingRoutineTitle: (title: string) => void;
 
+  // Note edit state
+  editingNoteId: string | null;
+  editingNoteContent: string;
+  setEditingNoteContent: (content: string) => void;
+
   // Loading state
   isRoutineSubmitting: boolean;
   isRoutineImporting: boolean;
@@ -33,6 +37,9 @@ interface UseMorningRoutineReturn {
   handleRoutineEditCancel: () => void;
   handleRoutineEditSave: (id: string) => Promise<void>;
   handleRoutineDelete: (id: string) => Promise<void>;
+  handleNoteEditStart: (id: string, note: string | null | undefined) => void;
+  handleNoteEditCancel: () => void;
+  handleNoteEditSave: (id: string) => Promise<void>;
   resetEditState: () => void;
 }
 
@@ -52,6 +59,8 @@ export function useMorningRoutine({
   const [routineTitleDraft, setRoutineTitleDraft] = useState("");
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
   const [editingRoutineTitle, setEditingRoutineTitle] = useState("");
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteContent, setEditingNoteContent] = useState("");
   const [isRoutineSubmitting, setIsRoutineSubmitting] = useState(false);
   const [isRoutineImporting, setIsRoutineImporting] = useState(false);
   const [isRoutineOpen, setIsRoutineOpen] = useState(true);
@@ -70,6 +79,8 @@ export function useMorningRoutine({
     setEditingRoutineId(null);
     setEditingRoutineTitle("");
     setRoutineTitleDraft("");
+    setEditingNoteId(null);
+    setEditingNoteContent("");
   }, []);
 
   useEffect(() => {
@@ -221,6 +232,10 @@ export function useMorningRoutine({
           if (editingRoutineId === id) {
             handleRoutineEditCancel();
           }
+          if (editingNoteId === id) {
+            setEditingNoteId(null);
+            setEditingNoteContent("");
+          }
           onDataRefresh();
         }
       } catch (error) {
@@ -229,7 +244,53 @@ export function useMorningRoutine({
         setIsRoutineSubmitting(false);
       }
     },
-    [editingRoutineId, handleRoutineEditCancel, onDataRefresh]
+    [editingRoutineId, editingNoteId, handleRoutineEditCancel, onDataRefresh]
+  );
+
+  const handleNoteEditStart = useCallback(
+    (id: string, note: string | null | undefined) => {
+      setEditingNoteId(id);
+      setEditingNoteContent(note || "");
+    },
+    []
+  );
+
+  const handleNoteEditCancel = useCallback(() => {
+    setEditingNoteId(null);
+    setEditingNoteContent("");
+  }, []);
+
+  const handleNoteEditSave = useCallback(
+    async (id: string) => {
+      setIsRoutineSubmitting(true);
+      try {
+        const noteValue = editingNoteContent.trim() || null;
+        const response = await fetch(`/api/morning-routine/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ note: noteValue }),
+        });
+
+        if (response.ok) {
+          // Optimistic update
+          setData((prevData) => {
+            if (!prevData) return prevData;
+            return {
+              ...prevData,
+              morningRoutine: prevData.morningRoutine.map((item) =>
+                item.id === id ? { ...item, note: noteValue } : item
+              ),
+            };
+          });
+          handleNoteEditCancel();
+        }
+      } catch (error) {
+        console.error("Failed to update note:", error);
+      } finally {
+        setIsRoutineSubmitting(false);
+      }
+    },
+    [editingNoteContent, setData, handleNoteEditCancel]
   );
 
   return {
@@ -242,6 +303,9 @@ export function useMorningRoutine({
     editingRoutineId,
     editingRoutineTitle,
     setEditingRoutineTitle,
+    editingNoteId,
+    editingNoteContent,
+    setEditingNoteContent,
     isRoutineSubmitting,
     isRoutineImporting,
     handleRoutineToggle,
@@ -251,6 +315,9 @@ export function useMorningRoutine({
     handleRoutineEditCancel,
     handleRoutineEditSave,
     handleRoutineDelete,
+    handleNoteEditStart,
+    handleNoteEditCancel,
+    handleNoteEditSave,
     resetEditState,
   };
 }

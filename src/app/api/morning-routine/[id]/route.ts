@@ -8,7 +8,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const data: { completed?: boolean; title?: string } = {};
+    const data: { completed?: boolean; title?: string; note?: string | null } = {};
 
     if (Object.prototype.hasOwnProperty.call(body, "completed")) {
       data.completed = Boolean(body.completed);
@@ -23,6 +23,15 @@ export async function PATCH(
         );
       }
       data.title = title;
+    }
+
+    // Handle note field - can be string (update) or null (delete)
+    if (Object.prototype.hasOwnProperty.call(body, "note")) {
+      if (body.note === null || body.note === "") {
+        data.note = null;
+      } else if (typeof body.note === "string") {
+        data.note = body.note;
+      }
     }
 
     if (Object.keys(data).length === 0) {

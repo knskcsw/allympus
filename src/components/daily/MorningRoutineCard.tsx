@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { ChevronDown, ChevronUp, Pencil, Trash2, StickyNote } from "lucide-react";
 import type { MorningRoutineItem } from "@/types/daily";
 
 interface RoutineItemRowProps {
@@ -13,12 +14,18 @@ interface RoutineItemRowProps {
   isEditing: boolean;
   editingTitle: string;
   isSubmitting: boolean;
+  isEditingNote: boolean;
+  editingNoteContent: string;
   onToggle: (id: string, completed: boolean) => void;
   onEditStart: (id: string, title: string) => void;
   onEditCancel: () => void;
   onEditSave: (id: string) => void;
   onEditTitleChange: (title: string) => void;
   onDelete: (id: string) => void;
+  onNoteEditStart: (id: string, note: string | null | undefined) => void;
+  onNoteEditCancel: () => void;
+  onNoteEditSave: (id: string) => void;
+  onNoteContentChange: (content: string) => void;
 }
 
 const RoutineItemRow = memo(function RoutineItemRow({
@@ -26,51 +33,132 @@ const RoutineItemRow = memo(function RoutineItemRow({
   isEditing,
   editingTitle,
   isSubmitting,
+  isEditingNote,
+  editingNoteContent,
   onToggle,
   onEditStart,
   onEditCancel,
   onEditSave,
   onEditTitleChange,
   onDelete,
+  onNoteEditStart,
+  onNoteEditCancel,
+  onNoteEditSave,
+  onNoteContentChange,
 }: RoutineItemRowProps) {
+  const hasNote = Boolean(item.note);
+
   return (
-    <div className="flex items-center gap-3 text-sm">
-      <Checkbox
-        checked={item.completed}
-        onCheckedChange={(checked) => onToggle(item.id, Boolean(checked))}
-      />
-      {isEditing ? (
-        <Input
-          value={editingTitle}
-          onChange={(e) => onEditTitleChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              onEditSave(item.id);
-            }
-            if (e.key === "Escape") {
-              e.preventDefault();
-              onEditCancel();
-            }
-          }}
+    <div className="space-y-2">
+      <div className="flex items-center gap-3 text-sm">
+        <Checkbox
+          checked={item.completed}
+          onCheckedChange={(checked) => onToggle(item.id, Boolean(checked))}
         />
-      ) : (
-        <button
-          type="button"
-          className={`text-left ${
-            item.completed ? "text-muted-foreground line-through" : ""
-          }`}
-          onClick={() => onToggle(item.id, !item.completed)}
-        >
-          {item.title}
-        </button>
-      )}
-      <div className="ml-auto flex items-center gap-2">
         {isEditing ? (
-          <>
+          <Input
+            value={editingTitle}
+            onChange={(e) => onEditTitleChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onEditSave(item.id);
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                onEditCancel();
+              }
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            className={`text-left ${
+              item.completed ? "text-muted-foreground line-through" : ""
+            }`}
+            onClick={() => onToggle(item.id, !item.completed)}
+          >
+            {item.title}
+          </button>
+        )}
+        <div className="ml-auto flex items-center gap-1">
+          {isEditing ? (
+            <>
+              <Button
+                size="sm"
+                onClick={() => onEditSave(item.id)}
+                disabled={isSubmitting}
+              >
+                保存
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onEditCancel}
+                disabled={isSubmitting}
+              >
+                キャンセル
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                size="icon"
+                variant="ghost"
+                className={`h-8 w-8 ${hasNote ? "text-primary" : ""}`}
+                onClick={() => onNoteEditStart(item.id, item.note)}
+                disabled={isSubmitting}
+                title={hasNote ? "メモを編集" : "メモを追加"}
+              >
+                <StickyNote className={`h-4 w-4 ${hasNote ? "fill-current" : ""}`} />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={() => onEditStart(item.id, item.title)}
+                disabled={isSubmitting}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 text-destructive"
+                onClick={() => onDelete(item.id)}
+                disabled={isSubmitting}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+      {/* Note display (when not editing) */}
+      {!isEditingNote && item.note && (
+        <div className="ml-7 pl-3 border-l-2 border-muted">
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{item.note}</p>
+        </div>
+      )}
+      {/* Note editor (inline expansion) */}
+      {isEditingNote && (
+        <div className="ml-7 space-y-2">
+          <Textarea
+            value={editingNoteContent}
+            onChange={(e) => onNoteContentChange(e.target.value)}
+            placeholder="メモを入力（例：今日はどういう気分か）"
+            className="min-h-[80px]"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                onNoteEditCancel();
+              }
+            }}
+          />
+          <div className="flex gap-2">
             <Button
               size="sm"
-              onClick={() => onEditSave(item.id)}
+              onClick={() => onNoteEditSave(item.id)}
               disabled={isSubmitting}
             >
               保存
@@ -78,35 +166,14 @@ const RoutineItemRow = memo(function RoutineItemRow({
             <Button
               size="sm"
               variant="ghost"
-              onClick={onEditCancel}
+              onClick={onNoteEditCancel}
               disabled={isSubmitting}
             >
               キャンセル
             </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              onClick={() => onEditStart(item.id, item.title)}
-              disabled={isSubmitting}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 text-destructive"
-              onClick={() => onDelete(item.id)}
-              disabled={isSubmitting}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });
@@ -120,6 +187,9 @@ interface MorningRoutineCardProps {
   editingRoutineId: string | null;
   editingRoutineTitle: string;
   onEditingRoutineTitleChange: (title: string) => void;
+  editingNoteId: string | null;
+  editingNoteContent: string;
+  onEditingNoteContentChange: (content: string) => void;
   isSubmitting: boolean;
   isImporting: boolean;
   onToggle: (id: string, completed: boolean) => void;
@@ -129,6 +199,9 @@ interface MorningRoutineCardProps {
   onEditCancel: () => void;
   onEditSave: (id: string) => void;
   onDelete: (id: string) => void;
+  onNoteEditStart: (id: string, note: string | null | undefined) => void;
+  onNoteEditCancel: () => void;
+  onNoteEditSave: (id: string) => void;
 }
 
 function MorningRoutineCard({
@@ -140,6 +213,9 @@ function MorningRoutineCard({
   editingRoutineId,
   editingRoutineTitle,
   onEditingRoutineTitleChange,
+  editingNoteId,
+  editingNoteContent,
+  onEditingNoteContentChange,
   isSubmitting,
   isImporting,
   onToggle,
@@ -149,6 +225,9 @@ function MorningRoutineCard({
   onEditCancel,
   onEditSave,
   onDelete,
+  onNoteEditStart,
+  onNoteEditCancel,
+  onNoteEditSave,
 }: MorningRoutineCardProps) {
   return (
     <Card>
@@ -203,12 +282,18 @@ function MorningRoutineCard({
                   isEditing={editingRoutineId === item.id}
                   editingTitle={editingRoutineTitle}
                   isSubmitting={isSubmitting}
+                  isEditingNote={editingNoteId === item.id}
+                  editingNoteContent={editingNoteContent}
                   onToggle={onToggle}
                   onEditStart={onEditStart}
                   onEditCancel={onEditCancel}
                   onEditSave={onEditSave}
                   onEditTitleChange={onEditingRoutineTitleChange}
                   onDelete={onDelete}
+                  onNoteEditStart={onNoteEditStart}
+                  onNoteEditCancel={onNoteEditCancel}
+                  onNoteEditSave={onNoteEditSave}
+                  onNoteContentChange={onEditingNoteContentChange}
                 />
               ))}
             </div>

@@ -201,6 +201,9 @@ export default function DailyPage() {
               editingRoutineId={morningRoutine.editingRoutineId}
               editingRoutineTitle={morningRoutine.editingRoutineTitle}
               onEditingRoutineTitleChange={morningRoutine.setEditingRoutineTitle}
+              editingNoteId={morningRoutine.editingNoteId}
+              editingNoteContent={morningRoutine.editingNoteContent}
+              onEditingNoteContentChange={morningRoutine.setEditingNoteContent}
               isSubmitting={morningRoutine.isRoutineSubmitting}
               isImporting={morningRoutine.isRoutineImporting}
               onToggle={morningRoutine.handleRoutineToggle}
@@ -210,6 +213,9 @@ export default function DailyPage() {
               onEditCancel={morningRoutine.handleRoutineEditCancel}
               onEditSave={morningRoutine.handleRoutineEditSave}
               onDelete={morningRoutine.handleRoutineDelete}
+              onNoteEditStart={morningRoutine.handleNoteEditStart}
+              onNoteEditCancel={morningRoutine.handleNoteEditCancel}
+              onNoteEditSave={morningRoutine.handleNoteEditSave}
             />
             <WbsSummaryCard
               summary={data.wbsSummary || []}

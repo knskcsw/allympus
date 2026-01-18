@@ -37,6 +37,7 @@ export interface MorningRoutineItem {
   title: string;
   completed: boolean;
   sortOrder: number;
+  note?: string | null;
 }
 
 export interface DailyTask {
