@@ -8,6 +8,7 @@ import { MonthlyAttendanceRecords } from "@/components/attendance/MonthlyAttenda
 import { MonthlySummaryCard } from "@/components/calendar/MonthlySummaryCard";
 import { MonthlyPageHeader } from "@/components/calendar/MonthlyPageHeader";
 import { LoadingPlaceholder } from "@/components/calendar/LoadingPlaceholder";
+import { MonthlyWorkTypeRatioCard } from "@/components/calendar/MonthlyWorkTypeRatioCard";
 import { useMonthlyData } from "@/hooks/useMonthlyData";
 import { useMonthNavigation } from "@/hooks/useMonthNavigation";
 
@@ -64,6 +65,8 @@ export default function CalendarPage() {
               )}
             </CardContent>
           </Card>
+
+          <MonthlyWorkTypeRatioCard year={year} month={month} />
 
           <Card>
             <CardHeader>

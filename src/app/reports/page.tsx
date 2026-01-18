@@ -5,22 +5,18 @@ import { BarChart3 } from "lucide-react";
 import { useReportData } from "@/hooks/useReportData";
 import {
   SummaryCards,
-  WorkTypeRatioCharts,
   DailyBreakdownTable,
   WbsSummaryTable,
   MonthNavigator,
 } from "@/components/reports";
-import type { RatioViewMode } from "@/types/reports";
 
 export default function ReportsPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [ratioViewMode, setRatioViewMode] = useState<RatioViewMode>("daily");
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
 
-  const { report, workTypeReport, isLoading, isWorkTypeLoading } =
-    useReportData(year, month);
+  const { report, isLoading } = useReportData(year, month);
 
   const handleExportCSV = useCallback(() => {
     window.open(
@@ -54,14 +50,6 @@ export default function ReportsPage() {
 
       {/* Summary Cards */}
       <SummaryCards summary={report.summary} />
-
-      {/* Work Type Ratio Charts */}
-      <WorkTypeRatioCharts
-        workTypeReport={workTypeReport}
-        ratioViewMode={ratioViewMode}
-        onViewModeChange={setRatioViewMode}
-        isLoading={isWorkTypeLoading}
-      />
 
       {/* Daily Breakdown and WBS Summary */}
       <div className="grid gap-6 md:grid-cols-2">
