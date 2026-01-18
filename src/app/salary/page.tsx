@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Wallet } from "lucide-react";
+import { ChevronLeft, ChevronRight, Wallet, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -407,11 +407,12 @@ export default function SalaryPage() {
                     ) : (
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
                         onClick={() => handleRemoveMonth(row)}
                         disabled={sortedRows.length <= 1}
                       >
-                        削除
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     )}
                   </TableCell>
