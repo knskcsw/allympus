@@ -10,6 +10,7 @@ type ImportResult = {
   applied: boolean;
   skipped: boolean;
   count: number;
+  routineTaskUsed?: number;
 };
 
 function parseTimeValue(time: string): { hours: number; minutes: number } | null {
@@ -143,18 +144,20 @@ export async function importWorkScheduleTemplateForDate(
   });
   let nextSortOrder = (existingSortOrder._max.sortOrder ?? -1) + 1;
 
+  // Fetch all Routine Tasks to check for duplicates
+  const routineTasks = await prisma.routineTask.findMany({
+    select: { id: true, title: true },
+  });
+  const routineTaskMap = new Map(
+    routineTasks.map((task) => [task.title, task.id])
+  );
+
   const createdEntries = [];
+  let routineTaskUsedCount = 0;
 
   for (const item of template.items) {
     const taskTitle = item.description.trim();
-
-    const { id: dailyTaskId, created } = await ensureDailyTaskId(
-      prisma,
-      dayStart,
-      taskTitle,
-      nextSortOrder
-    );
-    if (created) nextSortOrder += 1;
+    const routineTaskId = routineTaskMap.get(taskTitle);
 
     const startTime = buildDateTime(dayStart, item.startTime);
     const endTimeRaw = buildDateTime(dayStart, item.endTime);
@@ -172,30 +175,73 @@ export async function importWorkScheduleTemplateForDate(
     // Check if item has allocations
     const hasAllocations = item.allocations && item.allocations.length > 0;
 
-    const timeEntry = await prisma.timeEntry.create({
-      data: {
-        dailyTaskId,
-        startTime,
-        endTime,
-        duration: durationSeconds,
-        note: null,
-        projectId: hasAllocations ? null : item.projectId,
-        wbsId: hasAllocations ? null : item.wbsId,
-        allocations: hasAllocations ? {
-          create: item.allocations!.map((alloc) => ({
-            projectId: alloc.projectId,
-            wbsId: alloc.wbsId,
-            percentage: alloc.percentage,
-          })),
-        } : undefined,
-      },
-      select: { id: true },
-    });
+    if (routineTaskId) {
+      // Case A: Routine Task with the same name exists
+      // - Do not create DailyTask
+      // - Create TimeEntry linked to routineTaskId
+      const timeEntry = await prisma.timeEntry.create({
+        data: {
+          routineTaskId,
+          dailyTaskId: null,
+          startTime,
+          endTime,
+          duration: durationSeconds,
+          note: null,
+          projectId: hasAllocations ? null : item.projectId,
+          wbsId: hasAllocations ? null : item.wbsId,
+          allocations: hasAllocations ? {
+            create: item.allocations!.map((alloc) => ({
+              projectId: alloc.projectId,
+              wbsId: alloc.wbsId,
+              percentage: alloc.percentage,
+            })),
+          } : undefined,
+        },
+        select: { id: true },
+      });
+      createdEntries.push(timeEntry);
+      routineTaskUsedCount++;
+    } else {
+      // Case B: No Routine Task with the same name
+      // - Create DailyTask + TimeEntry (same as current behavior)
+      const { id: dailyTaskId, created } = await ensureDailyTaskId(
+        prisma,
+        dayStart,
+        taskTitle,
+        nextSortOrder
+      );
+      if (created) nextSortOrder += 1;
 
-    createdEntries.push(timeEntry);
+      const timeEntry = await prisma.timeEntry.create({
+        data: {
+          dailyTaskId,
+          routineTaskId: null,
+          startTime,
+          endTime,
+          duration: durationSeconds,
+          note: null,
+          projectId: hasAllocations ? null : item.projectId,
+          wbsId: hasAllocations ? null : item.wbsId,
+          allocations: hasAllocations ? {
+            create: item.allocations!.map((alloc) => ({
+              projectId: alloc.projectId,
+              wbsId: alloc.wbsId,
+              percentage: alloc.percentage,
+            })),
+          } : undefined,
+        },
+        select: { id: true },
+      });
+      createdEntries.push(timeEntry);
+    }
   }
 
-  return { applied: true, skipped: false, count: createdEntries.length };
+  return {
+    applied: true,
+    skipped: false,
+    count: createdEntries.length,
+    routineTaskUsed: routineTaskUsedCount
+  };
 }
 
 export async function applyWeekdayWorkScheduleTemplatesOnCheckIn(
