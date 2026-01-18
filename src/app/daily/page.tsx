@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
 
 const isBreakProject = (
   project?: { code?: string; name?: string; abbreviation?: string | null } | null
@@ -472,7 +472,6 @@ export default function DailyPage() {
   };
 
   const handleRoutineDelete = async (id: string) => {
-    if (!confirm("このルーティンを削除してもよろしいですか？")) return;
     setIsRoutineSubmitting(true);
     try {
       const response = await fetch(`/api/morning-routine/${id}`, {
@@ -731,22 +730,24 @@ export default function DailyPage() {
                               ) : (
                                 <>
                                   <Button
-                                    size="sm"
+                                    size="icon"
                                     variant="ghost"
+                                    className="h-8 w-8"
                                     onClick={() =>
                                       handleRoutineEditStart(item.id, item.title)
                                     }
                                     disabled={isRoutineSubmitting}
                                   >
-                                    編集
+                                    <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button
-                                    size="sm"
+                                    size="icon"
                                     variant="ghost"
+                                    className="h-8 w-8 text-destructive"
                                     onClick={() => handleRoutineDelete(item.id)}
                                     disabled={isRoutineSubmitting}
                                   >
-                                    削除
+                                    <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </>
                               )}

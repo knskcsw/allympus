@@ -126,10 +126,6 @@ export default function HolidaysPage() {
   };
 
   const handleDeleteHoliday = async (id: string) => {
-    if (!confirm("この休日を削除しますか？")) {
-      return;
-    }
-
     try {
       const res = await fetch(`/api/holidays/${id}`, {
         method: "DELETE",
