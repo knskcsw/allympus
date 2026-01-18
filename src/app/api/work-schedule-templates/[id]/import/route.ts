@@ -27,9 +27,7 @@ export async function POST(
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      return importWorkScheduleTemplateForDate(tx, templateId, targetDate, {
-        recordApplication: true,
-      });
+      return importWorkScheduleTemplateForDate(tx, templateId, targetDate);
     });
 
     return NextResponse.json({
