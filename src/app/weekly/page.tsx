@@ -10,7 +10,7 @@ import { useWeeklyData } from '@/hooks/useWeeklyData';
 import { WeeklyPageHeader } from '@/components/calendar/WeeklyPageHeader';
 import { WeeklyCalendar } from '@/components/calendar/WeeklyCalendar';
 import { WeeklyReportEditor } from '@/components/calendar/WeeklyReportEditor';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CalendarClock } from 'lucide-react';
 
 export default function WeeklyPage() {
   const {
@@ -33,8 +33,13 @@ export default function WeeklyPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">週次カレンダー</h1>
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="rounded-full bg-primary/10 p-2 text-primary">
+          <CalendarClock className="h-5 w-5" />
+        </div>
+        <h1 className="text-3xl font-bold">Weekly</h1>
+      </div>
 
       <WeeklyPageHeader
         weekRange={weekRange}
