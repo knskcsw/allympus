@@ -352,12 +352,10 @@ export default function DailyAttendanceBanner({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="editSleepHours">睡眠時間（h）</Label>
+                <Label htmlFor="editSleepHours">睡眠時間</Label>
                 <Input
                   id="editSleepHours"
-                  type="number"
-                  min="0"
-                  step="0.1"
+                  type="time"
                   value={formState.sleepHours}
                   onChange={(e) =>
                     setFormState({
@@ -365,7 +363,7 @@ export default function DailyAttendanceBanner({
                       sleepHours: e.target.value,
                     })
                   }
-                  placeholder="例: 6.5"
+                  placeholder="例: 07:30"
                 />
               </div>
               <div className="space-y-2">

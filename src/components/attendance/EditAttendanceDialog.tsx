@@ -59,9 +59,14 @@ export function EditAttendanceDialog({
       );
       setBreakMinutes(attendance.breakMinutes?.toString() || "0");
       setWorkMode(attendance.workMode || "Office");
+      // Convert decimal hours to hh:mm format
       setSleepHours(
         attendance.sleepHours !== null && attendance.sleepHours !== undefined
-          ? attendance.sleepHours.toString()
+          ? (() => {
+              const h = Math.floor(attendance.sleepHours);
+              const m = Math.round((attendance.sleepHours - h) * 60);
+              return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+            })()
           : ""
       );
       setNote(attendance.note || "");
@@ -94,6 +99,14 @@ export function EditAttendanceDialog({
           )
         : null;
 
+      // Convert hh:mm format to decimal hours
+      const timeToHours = (time: string) => {
+        if (!time) return null;
+        const [hours, minutes] = time.split(":").map(Number);
+        if (isNaN(hours) || isNaN(minutes)) return null;
+        return hours + minutes / 60;
+      };
+
       const res = await fetch(`/api/attendance/${attendance.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -105,9 +118,7 @@ export function EditAttendanceDialog({
           sleepHours:
             sleepHours === ""
               ? null
-              : Number.isNaN(Number.parseFloat(sleepHours))
-                ? null
-                : Number.parseFloat(sleepHours),
+              : timeToHours(sleepHours),
           note: note || null,
         }),
       });
@@ -188,12 +199,10 @@ export function EditAttendanceDialog({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="sleepHours">睡眠時間（h）</Label>
+              <Label htmlFor="sleepHours">睡眠時間</Label>
               <Input
                 id="sleepHours"
-                type="number"
-                min="0"
-                step="0.1"
+                type="time"
                 value={sleepHours}
                 onChange={(e) => setSleepHours(e.target.value)}
               />

@@ -99,7 +99,11 @@ export function MonthlyAttendanceRecords({
       workMode: attendance.workMode ?? DEFAULT_WORK_MODE,
       sleepHours:
         attendance.sleepHours !== null && attendance.sleepHours !== undefined
-          ? String(attendance.sleepHours)
+          ? (() => {
+              const h = Math.floor(attendance.sleepHours);
+              const m = Math.round((attendance.sleepHours - h) * 60);
+              return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+            })()
           : "",
       note: attendance.note ?? "",
     });
@@ -137,9 +141,11 @@ export function MonthlyAttendanceRecords({
           sleepHours:
             draft.sleepHours === ""
               ? null
-              : Number.isNaN(Number.parseFloat(draft.sleepHours))
-                ? null
-                : Number.parseFloat(draft.sleepHours),
+              : (() => {
+                  const [hours, minutes] = draft.sleepHours.split(":").map(Number);
+                  if (isNaN(hours) || isNaN(minutes)) return null;
+                  return hours + minutes / 60;
+                })(),
           note: draft.note || null,
         }),
       });
@@ -342,9 +348,7 @@ export function MonthlyAttendanceRecords({
                 <TableCell className="whitespace-nowrap">
                   {isEditing ? (
                     <Input
-                      type="number"
-                      min="0"
-                      step="0.1"
+                      type="time"
                       value={draft?.sleepHours ?? ""}
                       onChange={(e) =>
                         setDraft((prev) =>
@@ -356,7 +360,11 @@ export function MonthlyAttendanceRecords({
                     />
                   ) : attendance.sleepHours !== null &&
                     attendance.sleepHours !== undefined ? (
-                    `${attendance.sleepHours}h`
+                    (() => {
+                      const h = Math.floor(attendance.sleepHours);
+                      const m = Math.round((attendance.sleepHours - h) * 60);
+                      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+                    })()
                   ) : (
                     "-"
                   )}
