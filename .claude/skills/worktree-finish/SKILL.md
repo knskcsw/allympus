@@ -39,31 +39,12 @@ Analyze the output:
 
 ### Step 1.5: Handle Uncommitted Changes (If Needed)
 
-If uncommitted changes are detected, show the user what's changed and ask how to proceed:
+If uncommitted changes are detected, **automatically commit them** (don't ask - committing before merge is obvious):
 
 ```bash
 # Show what's changed
 git status --short
-```
 
-Display to user:
-```
-⚠️ You have uncommitted changes:
-
-Modified files:
-  - src/components/MyComponent.tsx
-  - README.md
-
-Do you want to:
-1. Commit them now (recommended)
-2. Stash them
-3. Cancel cleanup
-```
-
-**Based on user's choice:**
-
-**Option 1: Commit them now**
-```bash
 # Get recent commits to understand commit message style
 git log --oneline -5
 
@@ -92,15 +73,7 @@ IMPORTANT for commit message:
 - Write a clear, concise message that describes what was changed and why
 - Follow the existing commit message conventions in the repo
 
-**Option 2: Stash them**
-```bash
-git stash push -m "WIP: Changes before finishing worktree"
-```
-
-**Option 3: Cancel**
-Exit the skill and inform user to handle changes manually.
-
-After handling uncommitted changes, re-check `git status` to ensure working directory is clean, then proceed to Step 2.
+After committing, proceed to Step 2.
 
 ### Step 2: Confirm with User
 
@@ -231,29 +204,20 @@ User: /worktree-finish
 Assistant:
 [Runs checks and detects uncommitted changes]
 
-⚠️ You have uncommitted changes:
+未コミットの変更があるよ！コミットするね！
 
 Modified files:
   M src/components/TaskList.tsx
   M src/app/api/tasks/route.ts
 
-Do you want to:
-1. Commit them now (recommended)
-2. Stash them
-3. Cancel cleanup
-
-User: 1
-
 [Checks recent commits for style]
 [Shows diff of changes]
-[Creates commit]
+[Creates commit automatically]
 
 git add .
 git commit -m "Fix task list filtering and API endpoint validation"
 
 ✓ Changes committed!
-
-Now proceeding with cleanup...
 
 📋 Ready to finish work on: issue-7-fix-task-filter
 
@@ -302,11 +266,11 @@ User: 1
 ## Error Handling
 
 - **Merge conflicts:** If merge fails, STOP immediately and inform user
-- **Worktree has uncommitted changes:** Require user decision before proceeding (handled in Step 1.5)
+- **Worktree has uncommitted changes:** Automatically commit them (handled in Step 1.5)
 - **Branch not fully merged:** Git will prevent deletion, inform user
 - **Can't find dev server PID:** Continue cleanup, just note server might still be running
 - **Permission errors:** Report to user and suggest manual cleanup
-- **Commit creation fails:** Show error and ask user if they want to try again or cancel
+- **Commit creation fails:** Show error and inform user
 
 ## Safety Features
 
@@ -323,4 +287,4 @@ User: 1
 - Can be called from anywhere (worktree or main repo)
 - Always errs on the side of caution
 - User confirmation is REQUIRED before any destructive action
-- Automatically handles uncommitted changes by offering commit/stash options
+- Automatically commits uncommitted changes (no need to ask - committing before merge is obvious)
