@@ -345,6 +345,17 @@ export default function DailyPage() {
   };
 
   const handleRoutineToggle = async (id: string, completed: boolean) => {
+    // Optimistic update: immediately update local state
+    setData((prevData: any) => {
+      if (!prevData) return prevData;
+      return {
+        ...prevData,
+        morningRoutine: prevData.morningRoutine.map((item: any) =>
+          item.id === id ? { ...item, completed } : item
+        ),
+      };
+    });
+
     try {
       const response = await fetch(`/api/morning-routine/${id}`, {
         method: "PATCH",
@@ -352,11 +363,14 @@ export default function DailyPage() {
         body: JSON.stringify({ completed }),
       });
 
-      if (response.ok) {
+      if (!response.ok) {
+        // Rollback on failure
         fetchDailyData();
       }
     } catch (error) {
       console.error("Failed to update routine item:", error);
+      // Rollback on error
+      fetchDailyData();
     }
   };
 
