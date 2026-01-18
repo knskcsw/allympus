@@ -30,16 +30,77 @@ Analyze the output:
    - ❌ If on main branch in main repo → Error: no worktree to finish
 
 2. **Git status check:**
-   - ✅ If clean (no uncommitted changes) → Good, can merge
-   - ⚠️ If uncommitted changes exist → WARN user and ask:
-     - "You have uncommitted changes. Do you want to:"
-     - "1. Commit them first"
-     - "2. Stash them"
-     - "3. Cancel cleanup"
+   - ✅ If clean (no uncommitted changes) → Good, proceed to Step 2
+   - ⚠️ If uncommitted changes exist → Go to Step 1.5 (Handle Uncommitted Changes)
 
 3. **Running server check:**
    - Identify if a dev server is running for this worktree (check port)
    - Extract PID for later cleanup
+
+### Step 1.5: Handle Uncommitted Changes (If Needed)
+
+If uncommitted changes are detected, show the user what's changed and ask how to proceed:
+
+```bash
+# Show what's changed
+git status --short
+```
+
+Display to user:
+```
+⚠️ You have uncommitted changes:
+
+Modified files:
+  - src/components/MyComponent.tsx
+  - README.md
+
+Do you want to:
+1. Commit them now (recommended)
+2. Stash them
+3. Cancel cleanup
+```
+
+**Based on user's choice:**
+
+**Option 1: Commit them now**
+```bash
+# Get recent commits to understand commit message style
+git log --oneline -5
+
+# Show full diff
+git diff
+
+# Add all changes
+git add .
+
+# Create commit with descriptive message
+# Follow the repository's commit message style from git log
+git commit -m "$(cat <<'EOF'
+<descriptive commit message based on changes>
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+EOF
+)"
+
+# Verify commit
+git status
+```
+
+IMPORTANT for commit message:
+- Analyze the changes using `git diff`
+- Look at recent commit messages from `git log` to match the style
+- Write a clear, concise message that describes what was changed and why
+- Follow the existing commit message conventions in the repo
+
+**Option 2: Stash them**
+```bash
+git stash push -m "WIP: Changes before finishing worktree"
+```
+
+**Option 3: Cancel**
+Exit the skill and inform user to handle changes manually.
+
+After handling uncommitted changes, re-check `git status` to ensure working directory is clean, then proceed to Step 2.
 
 ### Step 2: Confirm with User
 
@@ -168,20 +229,57 @@ User: yes
 ```
 User: /worktree-finish
 Assistant:
-⚠️ Warning: You have uncommitted changes!
+[Runs checks and detects uncommitted changes]
+
+⚠️ You have uncommitted changes:
 
 Modified files:
-  - src/components/MyComponent.tsx
-  - README.md
+  M src/components/TaskList.tsx
+  M src/app/api/tasks/route.ts
 
 Do you want to:
-1. Commit them first
+1. Commit them now (recommended)
 2. Stash them
 3. Cancel cleanup
 
 User: 1
 
-[Creates commit, then proceeds with cleanup after confirmation]
+[Checks recent commits for style]
+[Shows diff of changes]
+[Creates commit]
+
+git add .
+git commit -m "Fix task list filtering and API endpoint validation"
+
+✓ Changes committed!
+
+Now proceeding with cleanup...
+
+📋 Ready to finish work on: issue-7-fix-task-filter
+
+This will:
+1. Stop dev server on port 3007 (PID: 45678)
+2. Switch to main repo and main branch
+3. Merge issue-7-fix-task-filter into main
+4. Close GitHub issue #7
+5. Remove worktree at: ~/.claude-worktrees/manage-task-app/issue-7
+6. Delete branch: issue-7-fix-task-filter
+
+Proceed? (yes/no)
+
+User: yes
+
+[Executes cleanup]
+
+✅ Cleanup complete!
+✓ Changes committed
+✓ Dev server stopped (port 3007)
+✓ Merged issue-7-fix-task-filter → main
+✓ Issue #7 closed
+✓ Worktree removed
+✓ Branch deleted
+
+📁 Current location: /Users/kansukechisuwa/project/manage-task-app (main)
 ```
 
 **Example 3: Called from Main Repo**
@@ -194,7 +292,7 @@ You're in the main repo. Which worktree do you want to finish?
 
 Active worktrees:
 1. issue-3 (issue-3-fix-overflow) - Port 3003
-2. issue-5 (feature/issue-5) - Port 3004
+2. issue-5 (feature/issue-5) - Port 3005
 
 User: 1
 
@@ -204,10 +302,11 @@ User: 1
 ## Error Handling
 
 - **Merge conflicts:** If merge fails, STOP immediately and inform user
-- **Worktree has uncommitted changes:** Require user decision before proceeding
+- **Worktree has uncommitted changes:** Require user decision before proceeding (handled in Step 1.5)
 - **Branch not fully merged:** Git will prevent deletion, inform user
 - **Can't find dev server PID:** Continue cleanup, just note server might still be running
 - **Permission errors:** Report to user and suggest manual cleanup
+- **Commit creation fails:** Show error and ask user if they want to try again or cancel
 
 ## Safety Features
 
@@ -216,6 +315,7 @@ User: 1
 3. **Check git status** before merging
 4. **Verify worktree removal succeeded** before deleting branch
 5. **Report any errors clearly** with suggested fixes
+6. **Create proper commits** with Co-Authored-By attribution
 
 ## Notes
 
@@ -223,3 +323,4 @@ User: 1
 - Can be called from anywhere (worktree or main repo)
 - Always errs on the side of caution
 - User confirmation is REQUIRED before any destructive action
+- Automatically handles uncommitted changes by offering commit/stash options
