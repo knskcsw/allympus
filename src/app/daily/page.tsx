@@ -199,8 +199,6 @@ export default function DailyPage() {
   };
 
   const handleTaskDelete = async (id: string) => {
-    if (!confirm("このタスクを削除してもよろしいですか？")) return;
-
     try {
       const response = await fetch(`/api/daily-tasks/${id}`, {
         method: "DELETE",
