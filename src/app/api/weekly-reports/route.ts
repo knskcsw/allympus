@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { prisma } from '@/lib/db';
 
 // GET /api/weekly-reports?weekStart=yyyy-MM-dd
 export async function GET(request: NextRequest) {
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     const weekStartDate = new Date(weekStart);
 
-    const report = await db.weeklyReport.findUnique({
+    const report = await prisma.weeklyReport.findUnique({
       where: {
         weekStart: weekStartDate,
       },
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     const weekStartDate = new Date(weekStart);
     const weekEndDate = new Date(weekEnd);
 
-    const report = await db.weeklyReport.upsert({
+    const report = await prisma.weeklyReport.upsert({
       where: {
         weekStart: weekStartDate,
       },
