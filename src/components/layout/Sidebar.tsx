@@ -1,12 +1,29 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import {
+  restrictToVerticalAxis,
+  restrictToParentElement,
+} from "@dnd-kit/modifiers";
+import {
   Home,
-  Clock,
-  CheckSquare,
   Calendar,
   BarChart3,
   FolderKanban,
@@ -20,11 +37,19 @@ import {
   MoonStar,
   Wallet,
   Repeat,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { SortableNavItem } from "./SortableNavItem";
 
-const navigation = [
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+}
+
+const DEFAULT_NAVIGATION: NavigationItem[] = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Daily", href: "/daily", icon: CalendarDays },
   { name: "Routine", href: "/routine", icon: Repeat },
@@ -37,6 +62,8 @@ const navigation = [
   { name: "EVM", href: "/evm", icon: LineChart },
   { name: "Salary", href: "/salary", icon: Wallet },
 ];
+
+const STORAGE_KEY_ORDER = "sidebar-order";
 
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 400;
@@ -59,9 +86,16 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
+  const [navigation, setNavigation] = useState<NavigationItem[]>(DEFAULT_NAVIGATION);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  // Load collapsed state and width from localStorage
+  // Sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  // Load collapsed state, width, and navigation order from localStorage
   useEffect(() => {
     const savedCollapsed = localStorage.getItem("sidebar-collapsed");
     if (savedCollapsed !== null) {
@@ -71,6 +105,28 @@ export function Sidebar() {
     const savedWidth = localStorage.getItem("sidebar-width");
     if (savedWidth !== null) {
       setSidebarWidth(parseInt(savedWidth, 10));
+    }
+
+    // Load navigation order
+    const savedOrder = localStorage.getItem(STORAGE_KEY_ORDER);
+    if (savedOrder) {
+      try {
+        const orderHrefs: string[] = JSON.parse(savedOrder);
+        // Reorder navigation based on saved order
+        const orderedNav = orderHrefs
+          .map((href) => DEFAULT_NAVIGATION.find((item) => item.href === href))
+          .filter((item): item is NavigationItem => item !== undefined);
+
+        // Add any new items that weren't in saved order to the end
+        const newItems = DEFAULT_NAVIGATION.filter(
+          (item) => !orderHrefs.includes(item.href)
+        );
+
+        setNavigation([...orderedNav, ...newItems]);
+      } catch {
+        // On parse error, use default
+        setNavigation(DEFAULT_NAVIGATION);
+      }
     }
   }, []);
 
@@ -128,6 +184,28 @@ export function Sidebar() {
     };
   }, [isResizing, isCollapsed]);
 
+  // Handle drag end - reorder navigation and save to localStorage
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    setNavigation((prev) => {
+      const oldIndex = prev.findIndex((item) => item.href === active.id);
+      const newIndex = prev.findIndex((item) => item.href === over.id);
+
+      const newOrder = arrayMove(prev, oldIndex, newIndex);
+
+      // Save to localStorage
+      localStorage.setItem(
+        STORAGE_KEY_ORDER,
+        JSON.stringify(newOrder.map((item) => item.href))
+      );
+
+      return newOrder;
+    });
+  }, []);
+
   return (
     <aside
       ref={sidebarRef}
@@ -170,28 +248,31 @@ export function Sidebar() {
         </div>
       )}
 
-      <nav className="space-y-1 p-2">
-        {navigation.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                isCollapsed && "justify-center"
-              )}
-              title={isCollapsed ? item.name : undefined}
-            >
-              <item.icon className="h-5 w-5 flex-shrink-0" />
-              {!isCollapsed && item.name}
-            </Link>
-          );
-        })}
-      </nav>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+        onDragEnd={handleDragEnd}
+      >
+        <nav className="space-y-1 p-2">
+          <SortableContext
+            items={navigation.map((item) => item.href)}
+            strategy={verticalListSortingStrategy}
+          >
+            {navigation.map((item) => (
+              <SortableNavItem
+                key={item.href}
+                id={item.href}
+                name={item.name}
+                href={item.href}
+                icon={item.icon}
+                isActive={pathname === item.href}
+                isCollapsed={isCollapsed}
+              />
+            ))}
+          </SortableContext>
+        </nav>
+      </DndContext>
 
       {/* Resize handle */}
       {!isCollapsed && (
